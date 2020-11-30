@@ -50,7 +50,7 @@ function check_docker_install {
 
     if [ -x "$(command -v pacman)" ]; then
         echo ">   pacman gefunden..."
-        sudo pacman -S --needed docker > /dev/null
+        sudo pacman -S --needed docker
 
     elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
         echo ">   apt gefunden..."
@@ -81,7 +81,7 @@ function check_docker_install {
 
 	# Enable docker to start on boot
 	echo ">   Aktiviere Docker-Service Autostart beim Boot..."
-	sudo systemctl enable docker > /dev/null
+	sudo systemctl enable docker
 }
 
 function install_docker_apt() {
@@ -93,38 +93,35 @@ function install_docker_apt() {
     	ca-certificates \
     	curl \
     	gnupg-agent \
-    	software-properties-common \
-		> /dev/null
+    	software-properties-common
 
 	echo ">     Füge Docker's offiziellen GPG Key hinzu..."
-	curl -fsSL "https://download.docker.com/linux/$1/gpg" | sudo apt-key add - > /dev/null
+	curl -fsSL "https://download.docker.com/linux/$1/gpg" | sudo apt-key add -
 
 	echo ">     Füge Docker-Stable Apt-Repository hinzu..."
 	sudo add-apt-repository \
    		"deb [arch=amd64] https://download.docker.com/linux/$1 \
    		$(lsb_release -cs) \
-   		stable" \
-		> /dev/null
+   		stable"
 
 	echo ">     Installiere Docker Engine..."
-	sudo apt-get update > /dev/null
-	sudo apt-get install docker-ce docker-ce-cli containerd.io > /dev/null
+	sudo apt-get update
+	sudo apt-get install docker-ce docker-ce-cli containerd.io
 }
 
 function install_docker_dnf() {
 	echo ">     Füge Docker-Stable Dnf-Repository hinzu..."
-	sudo dnf -y install dnf-plugins-core > /dev/null
+	sudo dnf -y install dnf-plugins-core
 	sudo dnf config-manager \
     	--add-repo \
-    	https://download.docker.com/linux/fedora/docker-ce.repo \
-		> /dev/null
+    	https://download.docker.com/linux/fedora/docker-ce.repo
 
 	echo ">     Bei Fedora 31 oder höher muss die 'backward compatibility für Cgroups' freigeschaltet werden."
 	echo ">     In dem Fall den folgenden Befehl ausführen und System neustarten: "
 	echo '>     sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"'
 
 	echo ">     Starte Docker Service..."
-	sudo systemctl start docker > /dev/null
+	sudo systemctl start docker
 }
 
 function install_docker_yum() {
@@ -132,22 +129,21 @@ function install_docker_yum() {
 	sudo yum install -y yum-utils
 	sudo yum-config-manager \
     	--add-repo \
-    	https://download.docker.com/linux/centos/docker-ce.repo \
-		> /dev/null
+    	https://download.docker.com/linux/centos/docker-ce.repo
 
 	echo ">     Installiere Docker Engine..."
-	sudo yum install docker-ce docker-ce-cli containerd.io > /dev/null
+	sudo yum install docker-ce docker-ce-cli containerd.io
 
 	echo ">     Starte Docker Service..."
-	sudo systemctl start docker > /dev/null
+	sudo systemctl start docker
 }
 
 function add_docker_group() {
 	echo ">     Erstelle docker Gruppe..."
-	sudo groupadd docker > /dev/null
+	sudo groupadd docker
 
 	echo ">     Füge aktuellen Benutzer zur Gruppe hinzu..."
-	sudo usermod -aG docker $USER > /dev/null
+	sudo usermod -aG docker $USER
 
 	echo ">     Es wird versucht die Gruppen-Änderung zu aktivieren. Sollte dies nicht funktionieren, müssen Sie sich einmal ab- und wieder anmelden."
 	echo ">     Die Gruppe dient dazu, dass Docker ohne root-Rechte verwendet werden kann."
@@ -319,8 +315,8 @@ $(ColorBlue '   >') "
 	end_port=$((external_port + container_count - 1))
 
 	for port in `seq $external_port $end_port`; do
-		$(docker run --name $name -p $port:5432 --restart=$restart -d postgres:$postgres_version > /dev/null) && \
-		$(docker exec -it yournamecontainer psql -U postgres -c "CREATE DATABASE $db_name;" > /dev/null) && \
+		$(docker run --name $name -p $port:5432 --restart=$restart -d postgres:$postgres_version) && \
+		$(docker exec -it yournamecontainer psql -U postgres -c "CREATE DATABASE $db_name;") && \
 		echo "Postgres Container lauscht auf $ip:$port..."
 		echo
     done
