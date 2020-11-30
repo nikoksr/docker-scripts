@@ -186,25 +186,9 @@ $(DimText '################################')
 	# Try to install sudo
 	echo "> Melde Nutzer root an..."
 	local og_user=$USER
-	su - && \
+	su -c "apt-get update && apt-get install sudo && if grep -Eiq '%sudo\s+ALL\s*=\s*\(ALL(:ALL)?\)\s+ALL' /etc/sudoers; then usermod -aG sudo '$og_user'; elif ! grep -Eiq 'user\s+ALL\s*=\s*\(ALL(:ALL)?\)\s+ALL' /etc/sudoers; then echo '%sudo ALL=(ALL) ALL' >> /etc/sudoers; fi; exit" -
 
-	echo "> Installiere 'sudo'..."
-	apt-get update && \
-	apt-get install sudo
-
-	# Configure sudoers file
-	echo "> Update sudo Konfig-Datei..."
-	if grep -q "%sudo ALL=(ALL) ALL" "/etc/sudoers"; then
-  		usermod -aG sudo "$og_user"
-	elif ! [ grep -q "user ALL=(ALL) ALL" "/etc/sudoers" ]; then
-		echo "%sudo ALL=(ALL) ALL" >> /etc/sudoers
-	fi
-
-	# Exit root user and try sudo
-	echo "> Verlasse root Sitzung..."
-	exit
-
-	if [ -x "$(command -v newgrp)" ]; then
+	if [ -x "$(command -v sudo)" ]; then
 		echo "> Programm 'sudo' wurde erfolgreich installiert..."
 	else
 		echo "> Programm 'sudo' konnte nicht installiert oder gefunden werden..."
