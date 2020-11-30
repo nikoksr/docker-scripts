@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.3.1'
+version='v0.4.0'
 
 # Colors
 green='\e[32m'
@@ -15,22 +15,29 @@ dim='\e[2m'
 undim='\e[22m'
 clear='\e[0m'
 
+# Unicode Symbols
+checkmark='\u2713'
+x_symbol='\u2716'
+
+# Bar
+separator='##############################################################'
+
 ##
 # Color Functions
 ##
-ColorGreen(){
+Green(){
 	echo -ne $green$1$clear
 }
 
-ColorBlue(){
+Blue(){
 	echo -ne $blue$1$clear
 }
 
-ColorRed(){
+Red(){
 	echo -ne $red$1$clear
 }
 
-DimText(){
+Dim(){
 	echo -ne $dim$1$clear
 }
 
@@ -40,8 +47,19 @@ DimText(){
 
 # check_docker_install checks if docker was installed correctly and installs it in case its missing.
 function check_docker_install {
+	echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Docker installieren')
+$(Dim $separator)
+
+"
+
+	if ! is_user_in_group $USER 'docker'; then
+		add_docker_group
+	fi
+
 	if [ -x "$(command -v docker)" ]; then
-		echo "> Docker Installation gefunden..."
+		echo "> Docker ist bereits installiert..."
         return 0
     fi
 
@@ -139,12 +157,17 @@ function install_docker_yum() {
 }
 
 function add_docker_group() {
-	echo ">     Erstelle docker Gruppe..."
-	sudo groupadd docker
+	if is_user_in_group $USER docker; then
+		return 0
+	fi
+
+	if ! grep -q -E "^docker:" /etc/group; then
+		echo ">     Erstelle Docker Gruppe..."
+    	sudo groupadd docker
+    fi
 
 	echo ">     Füge aktuellen Benutzer zur Gruppe hinzu..."
 	sudo usermod -aG docker $USER
-
 	echo ">     Es wird versucht die Gruppen-Änderung zu aktivieren. Sollte dies nicht funktionieren, müssen Sie sich einmal ab- und wieder anmelden."
 	echo ">     Die Gruppe dient dazu, dass Docker ohne root-Rechte verwendet werden kann."
 	newgrp docker
@@ -152,11 +175,18 @@ function add_docker_group() {
 
 function install_and_setup_sudo() {
 	echo -ne "
-$(DimText '################################')
-$(DimText '# ')$(ColorBlue 'Installiere sudo')
-$(DimText '################################')
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Sudo installieren')
+$(Dim $separator)
 
- $(ColorRed 'WARNUNG')
+"
+
+	if [ -x "$(command -v sudo)" ]; then
+		echo "> Sudo ist bereits installiert..."
+		return 0
+    fi
+
+	echo -ne " $(Red 'WARNUNG')
 
    Zur Installation des 'sudo' Programm's wird der Skript versuchen sich als Benutzer root anzumelden.
    Der Benutzer root hat unter Linux uneingeschränkte(!) Nutzungsrechte, welche benötigt werden, um das
@@ -201,9 +231,9 @@ $(DimText '################################')
 
 function create_postgres_container() {
 	echo -ne "
-$(DimText '################################')
-$(DimText '# ')$(ColorBlue 'Postgres Container erstellen')
-$(DimText '################################')
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Postgres Container erstellen')
+$(Dim $separator)
 
 "
 
@@ -225,11 +255,11 @@ $(DimText '################################')
 	echo
 	echo -ne "Neustart Verhalten:
 
-	$(ColorGreen '    1)') Immer (Standard)
-	$(ColorGreen '    2)') Nur bei Absturz/Fehler
-	$(ColorGreen '    3)') Immer, außer wenn explizit gestoppt
-	$(ColorGreen '    4)') Nie
-	$(ColorBlue '     >') "
+	$(Green '    1)') Immer (Standard)
+	$(Green '    2)') Nur bei Absturz/Fehler
+	$(Green '    3)') Immer, außer wenn explizit gestoppt
+	$(Green '    4)') Nie
+	$(Blue '     >') "
 	read a
     case $a in
 		2) restart="on-failure";;
@@ -259,9 +289,9 @@ $(DimText '################################')
 
 function create_multiple_postgres_container() {
 	echo -ne "
-$(DimText '####################################################')
-$(DimText '# ')$(ColorBlue 'Mehrere Postgres Container automatisch erstellen')
-$(DimText '####################################################')
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Mehrere Postgres Container automatisch erstellen')
+$(Dim $separator)
 
 "
 
@@ -286,11 +316,11 @@ $(DimText '####################################################')
 	restart="always"
 	echo
 	echo -ne "Neustart Verhalten:
-$(ColorGreen '  1)') Immer (Standard)
-$(ColorGreen '  2)') Nur bei Absturz/Fehler
-$(ColorGreen '  3)') Immer, außer wenn explizit gestoppt
-$(ColorGreen '  4)') Nie
-$(ColorBlue '   >') "
+$(Green '  1)') Immer (Standard)
+$(Green '  2)') Nur bei Absturz/Fehler
+$(Green '  3)') Immer, außer wenn explizit gestoppt
+$(Green '  4)') Nie
+$(Blue '   >') "
 	read a
     case $a in
 		2) restart="on-failure";;
@@ -331,32 +361,65 @@ $(ColorBlue '   >') "
     	done
 }
 
+function is_user_in_group() {
+	if id -nG "$1" | grep -qw "$2"; then
+    	return 0
+	fi
+
+	return 1
+}
+
+function print_sys_info_headline() {
+	# Docker Install Status
+	docker_install=$(Dim 'Docker-Install ')$(Red "$x_symbol")
+	if [ -x "$(command -v docker)" ]; then
+		docker_install=$(Dim 'Docker-Install ')$(Green "$checkmark")
+    fi
+
+	# Docker Group
+	docker_group=$(Dim 'Docker-Gruppe ')$(Green "$checkmark")
+	if ! is_user_in_group $USER 'docker'; then
+		docker_group=$(Dim 'Docker-Gruppe ')$(Red "$x_symbol")
+	fi
+
+	# Sudo Install Status
+	sudo_install=$(Dim 'Sudo-Install ')$(Red "$x_symbol")
+	if [ -x "$(command -v sudo)" ]; then
+		sudo_install=$(Dim 'Sudo-Install ')$(Green "$checkmark")
+    fi
+
+	echo -ne "$docker_install $docker_group $sudo_install"
+}
+
 # menu prints the general and interactive navigation menu.
 function menu(){
 echo -ne "
-$(DimText '####################################################')
-$(DimText '#')
-$(DimText '# ')$(ColorBlue 'Easy-Postgres-Containers '$version'')
-$(DimText '#')
-$(DimText '####################################################')
+$(Dim $separator)
+$(Dim '#')
+$(Dim '#') $(Blue 'Easy-Postgres-Containers '$version'')
+$(Dim '#')
+$(Dim '#') $(Dim 'Webseite:') $(Blue 'https://github.com/nikoksr/docker-scripts')
+$(Dim '#') $(Dim 'Lizenz:')   $(Blue 'https://github.com/nikoksr/docker-scripts/LICENSE')
+$(Dim '#')
+$(Dim '#') $(print_sys_info_headline)
+$(Dim '#')
+$(Dim $separator)
 
-$(ColorGreen '1)') Mehrere Postgres Container automatisch erstellen
-$(ColorGreen '2)') Einzelnen Postgres Container manuell erstellen
-$(ColorGreen '3)') Docker Installation checken
-$(ColorGreen '4)') User zu Docker Gruppe hinzufügen
-$(ColorGreen '5)') Programm 'sudo' installieren
-$(ColorGreen '0)') Exit
+$(Green '1)') Einzelnen Postgres-Container manuell erstellen
+$(Green '2)') Mehrere Postgres-Container automatisch erstellen
+$(Green '3)') Docker installieren
+$(Green '4)') Sudo installieren
+$(Red '0)') Exit
 
-$(ColorBlue '>') "
+$(Blue '>') "
     read a
     case $a in
-		1) create_multiple_postgres_container ;;
-		2) create_postgres_container ;;
-	    3) check_docker_install ;;
-		4) add_docker_group ;;
-		5) install_and_setup_sudo ;;
-		0) exit 0 ;;
-		*) echo -e $red"Warnung: Option existiert nicht."$clear ; menu ;;
+		1) create_postgres_container;;
+		2) create_multiple_postgres_container;;
+	    3) check_docker_install;;
+		4) install_and_setup_sudo;;
+		0) exit 0;;
+		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
 }
 
