@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.8.0'
+version='v0.8.1'
 
 # Colors
 green='\e[32m'
@@ -338,7 +338,14 @@ $(Dim $separator)
 "
 
 	# Get currently highest port in use
-	highest_port=$(("$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep 'postgres:*' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)" + 1))
+	highest_port="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep 'postgres:*' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
+
+	# If no port assigned yet or port lower than 1024 default to postgres default port - 5432. Else, increment port by one.
+	if [[ "$highest_port" -eq 0 ]] || [[ "$highest_port" -le 1024 ]]; then
+		highest_port=5432
+	else
+		highest_port=$(($highest_port + 1))
+	fi
 
 	# Anzahl, Port and Postgres Version
 	read -p "> Anzahl Container (1):              " container_count
