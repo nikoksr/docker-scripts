@@ -196,8 +196,7 @@ $(DimText '################################')
 	echo "> Update sudo Konfig-Datei..."
 	if grep -q "%sudo ALL=(ALL) ALL" "/etc/sudoers"; then
   		usermod -aG sudo "$og_user"
-	elif grep -q "user ALL=(ALL) ALL" "/etc/sudoers"; then
-	else
+	elif ! [ grep -q "user ALL=(ALL) ALL" "/etc/sudoers" ]; then
 		echo "%sudo ALL=(ALL) ALL" >> /etc/sudoers
 	fi
 
