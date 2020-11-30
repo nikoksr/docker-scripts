@@ -235,7 +235,7 @@ $(Dim $separator)
    Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
    und führen Sie folgenden Befehl aus:
 
-   $(Blue 'docker ps -a --filter ancestor=postgres')
+   $(Blue 'docker ps -a | grep 'postgres:*'')
 
 
 "
@@ -326,7 +326,7 @@ $(Dim $separator)
 		*) exit 0 ;;
     esac
 
-	docker rmi -f $(docker images |grep 'postgres')
+	docker rmi -f $(docker images | grep 'postgres')
 }
 
 function create_postgres_containers() {
