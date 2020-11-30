@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.4.0'
+version='v0.4.1'
 
 # Colors
 green='\e[32m'
@@ -53,11 +53,11 @@ $(Dim '# ')$(Blue 'Docker installieren')
 $(Dim $separator)
 
 "
+	# Add user to docker group if not already in it. This is at the beginning so that user will still
+	# be automatically added to docker group even if docker is already installed.
+	add_docker_group
 
-	if ! is_user_in_group $USER 'docker'; then
-		add_docker_group
-	fi
-
+	# Check if docker is already installed.
 	if [ -x "$(command -v docker)" ]; then
 		echo "> Docker ist bereits installiert..."
         return 0
@@ -162,15 +162,15 @@ function add_docker_group() {
 	fi
 
 	if ! grep -q -E "^docker:" /etc/group; then
-		echo ">     Erstelle Docker Gruppe..."
+		echo "> Erstelle Docker Gruppe..."
     	sudo groupadd docker
     fi
 
-	echo ">     Füge aktuellen Benutzer zur Gruppe hinzu..."
+	echo "> Füge aktuellen Benutzer zur Gruppe hinzu..."
 	sudo usermod -aG docker $USER
-	echo ">     Es wird versucht die Gruppen-Änderung zu aktivieren. Sollte dies nicht funktionieren, müssen Sie sich einmal ab- und wieder anmelden."
-	echo ">     Die Gruppe dient dazu, dass Docker ohne root-Rechte verwendet werden kann."
-	newgrp docker
+	echo "> Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
+	echo "  Die Zugehörigkeit in der Docker-Gruppe ermöglicht es Ihnen, Docker ohne 'root'-Rechte verwendet werden zu können."
+	return 0
 }
 
 function install_and_setup_sudo() {
@@ -221,11 +221,8 @@ $(Dim $separator)
 		exit 1
 	fi
 
-	if [ -x "$(command -v newgrp)" ]; then
-		newgrp sudo
-	else
-		echo "> Konnte Gruppen-Änderung nicht laden. Bitte melden Sie sich einmalig ab und wieder an und starten Sie den Skript erneut."
-	fi
+	echo "> Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
+	echo "  Die Zugehörigkeit in der Sudo-Gruppe ermöglicht es Ihnen, Befehle mit erweiterten Rechten ausführen zu können."
 }
 
 
