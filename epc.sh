@@ -26,6 +26,10 @@ ColorBlue(){
 	echo -ne $blue$1$clear
 }
 
+ColorRed(){
+	echo -ne $red$1$clear
+}
+
 DimText(){
 	echo -ne $dim$1$clear
 }
@@ -149,6 +153,72 @@ function add_docker_group() {
 	echo ">     Die Gruppe dient dazu, dass Docker ohne root-Rechte verwendet werden kann."
 	newgrp docker
 }
+
+function install_and_setup_sudo() {
+	echo -ne "
+$(DimText '################################')
+$(DimText '# ')$(ColorBlue 'Installiere sudo')
+$(DimText '################################')
+
+ $(ColorRed 'WARNUNG')
+
+   Zur Installation des 'sudo' Programm's wird der Skript versuchen sich als Benutzer root anzumelden.
+   Der Benutzer root hat unter Linux uneingeschränkte(!) Nutzungsrechte, welche benötigt werden, um das
+   Programm 'sudo' installieren und konfigurieren zu können.
+   Für jegliche Fehler, Probleme oder ähnliches ungewolltes Fehlverhalten wird nicht gehaftet. Dies
+   ist freie und offene Software, welche ohne jegliche Garantie und Gewährleistung kommt.
+   Sollten Sie sich unsicher sein, lassen Sie das Programm 'sudo' von einem Systemadministrator o.Ä.
+   Ihres Vertrauens installieren und führen Sie danach diesen Skript erneut aus.
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	# Try to install sudo
+	echo "> Melde Nutzer root an..."
+	local og_user=$USER
+	su - && \
+
+	echo "> Installiere 'sudo'..."
+	apt-get update && \
+	apt-get install sudo
+
+	# Configure sudoers file
+	echo "> Update sudo Konfig-Datei..."
+	if grep -q "%sudo ALL=(ALL) ALL" "/etc/sudoers"; then
+  		usermod -aG sudo "$og_user"
+	elif grep -q "user ALL=(ALL) ALL" "/etc/sudoers"; then
+	else
+		echo "%sudo ALL=(ALL) ALL" >> /etc/sudoers
+	fi
+
+	# Exit root user and try sudo
+	echo "> Verlasse root Sitzung..."
+	exit
+
+	if [ -x "$(command -v newgrp)" ]; then
+		echo "> Programm 'sudo' wurde erfolgreich installiert..."
+	else
+		echo "> Programm 'sudo' konnte nicht installiert oder gefunden werden..."
+		exit 1
+	fi
+
+	if [ -x "$(command -v newgrp)" ]; then
+		newgrp sudo
+	else
+		echo "> Konnte Gruppen-Änderung nicht laden. Bitte melden Sie sich einmalig ab und wieder an und starten Sie den Skript erneut."
+	fi
+}
+
 
 function create_postgres_container() {
 	echo -ne "
@@ -286,6 +356,7 @@ $(ColorGreen '1)') Mehrere Postgres Container automatisch erstellen
 $(ColorGreen '2)') Einzelnen Postgres Container manuell erstellen
 $(ColorGreen '3)') Docker Installation checken
 $(ColorGreen '4)') User zu Docker Gruppe hinzufügen
+$(ColorGreen '5)') Programm 'sudo' installieren
 $(ColorGreen '0)') Exit
 
 $(ColorBlue '>') "
@@ -295,6 +366,7 @@ $(ColorBlue '>') "
 		2) create_postgres_container ;;
 	    3) check_docker_install ;;
 		4) add_docker_group ;;
+		5) install_and_setup_sudo ;;
 		0) exit 0 ;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear ; menu ;;
     esac
