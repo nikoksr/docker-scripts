@@ -271,7 +271,7 @@ $(Blue '    >') "
 	echo
 	read -p "> Datenbank Name:             " db_name
 
-	read -s -p "> Admin Passwort:             " admin_pwd
+	read -s -p "> Postgres Passwort:       " admin_pwd
 	if [ -z "$admin_pwd" ]; then
 		echo "> $(Red 'Fehler:') Admin-Passwort darf nicht leer sein."
 		exit 1
@@ -293,7 +293,7 @@ $(Blue '    >') "
 
 			# Wait 5 seconds for container to start
 			is_running=1
-			while [[ $i -lt 5 ]]; do
+			while [[ $i -lt 90 ]]; do
 				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
 					is_running=0
 					break
@@ -325,24 +325,24 @@ function is_user_in_group() {
 
 function print_sys_info_headline() {
 	# Docker Install Status
-	docker_install=$(Dim 'Docker-Install ')$(Red "$x_symbol")
+	docker_install=$(Dim 'Docker-Install  ')$(Red "$x_symbol")
 	if [ -x "$(command -v docker)" ]; then
-		docker_install=$(Dim 'Docker-Install ')$(Green "$checkmark")
+		docker_install=$(Dim 'Docker-Install  ')$(Green "$checkmark")
     fi
 
 	# Docker Group
-	docker_group=$(Dim 'Docker-Gruppe ')$(Green "$checkmark")
+	docker_group=$(Dim 'Docker-Gruppe  ')$(Green "$checkmark")
 	if ! is_user_in_group $USER 'docker'; then
-		docker_group=$(Dim 'Docker-Gruppe ')$(Red "$x_symbol")
+		docker_group=$(Dim 'Docker-Gruppe  ')$(Red "$x_symbol")
 	fi
 
 	# Sudo Install Status
-	sudo_install=$(Dim 'Sudo-Install ')$(Red "$x_symbol")
+	sudo_install=$(Dim 'Sudo-Install  ')$(Red "$x_symbol")
 	if [ -x "$(command -v sudo)" ]; then
-		sudo_install=$(Dim 'Sudo-Install ')$(Green "$checkmark")
+		sudo_install=$(Dim 'Sudo-Install  ')$(Green "$checkmark")
     fi
 
-	echo -ne "$docker_install $docker_group $sudo_install"
+	echo -ne "$docker_install  $docker_group  $sudo_install"
 }
 
 # menu prints the general and interactive navigation menu.
