@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.7.0'
+version='v0.7.1'
 
 # Colors
 green='\e[32m'
@@ -271,7 +271,7 @@ $(Dim $separator)
 		*) exit 0 ;;
     esac
 
-	docker rm -f $(docker ps -aq --filter ancestor=postgres)
+	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
 function remove_all_postgres_images() {
