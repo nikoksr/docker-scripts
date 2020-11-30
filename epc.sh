@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.4.1'
+version='v0.5.0'
 
 # Colors
 green='\e[32m'
@@ -225,66 +225,7 @@ $(Dim $separator)
 	echo "  Die Zugehörigkeit in der Sudo-Gruppe ermöglicht es Ihnen, Befehle mit erweiterten Rechten ausführen zu können."
 }
 
-
-function create_postgres_container() {
-	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres Container erstellen')
-$(Dim $separator)
-
-"
-
-	# Name, Port and Postgres Version
-	read -p "Container Name:            " container_name
-	read -p "Externer Port (5432):      " external_port
-	read -p "Postgres Version (latest): " postgres_version
-
-	if [ -z "$external_port" ]; then
-    	external_port="5432"
-	fi
-
-	if [ -z "$postgres_version" ]; then
-    	postgres_version="latest"
-	fi
-
-	# Restart policy
-	restart="always"
-	echo
-	echo -ne "Neustart Verhalten:
-
-	$(Green '    1)') Immer (Standard)
-	$(Green '    2)') Nur bei Absturz/Fehler
-	$(Green '    3)') Immer, außer wenn explizit gestoppt
-	$(Green '    4)') Nie
-	$(Blue '     >') "
-	read a
-    case $a in
-		2) restart="on-failure";;
-		3) restart="unless-stopped";;
-		4) restart="no";;
-		*);;
-    esac
-
-	# Set the command together
-	exec_command="docker run --name $container_name -p $external_port:5432 --restart=$restart -d postgres:$postgres_version"
-
-	if [ -z "$container_name" ]; then
-    	exec_command="docker run -p $external_port:5432 --restart=$restart -d postgres:$postgres_version"
-	fi
-
-	echo
-	echo
-	echo "Vollständiger Befehl: $exec_command"
-	echo
-	read -p "Ausführen (J/n): " run
-	case $run in
-		"n");;
-		"N");;
-		*) $exec_command;;
-    esac
-}
-
-function create_multiple_postgres_container() {
+function create_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Mehrere Postgres Container automatisch erstellen')
@@ -293,9 +234,9 @@ $(Dim $separator)
 "
 
 	# Anzahl, Port and Postgres Version
-	read -p "Anzahl Container:           " container_count
-	read -p "Start Port (5432):          " external_port
-	read -p "Postgres Version (latest):  " postgres_version
+	read -p "> Anzahl Container (1):       " container_count
+	read -p "> Start Port (5432):          " external_port
+	read -p "> Postgres Version (latest):  " postgres_version
 
 	if [ -z "$container_count" ]; then
     	container_count=1
@@ -312,12 +253,12 @@ $(Dim $separator)
 	# Restart policy
 	restart="always"
 	echo
-	echo -ne "Neustart Verhalten:
-$(Green '  1)') Immer (Standard)
-$(Green '  2)') Nur bei Absturz/Fehler
-$(Green '  3)') Immer, außer wenn explizit gestoppt
-$(Green '  4)') Nie
-$(Blue '   >') "
+	echo -ne ">Neustart Verhalten:
+$(Green '   1)') Immer (Standard)
+$(Green '   2)') Nur bei Absturz/Fehler
+$(Green '   3)') Immer, außer wenn explizit gestoppt
+$(Green '   4)') Nie
+$(Blue '    >') "
 	read a
     case $a in
 		2) restart="on-failure";;
@@ -328,16 +269,11 @@ $(Blue '   >') "
 
 	# Database name
 	echo
-	read -p "Datenbank Name:             " db_name
+	read -p "> Datenbank Name:             " db_name
 
-	if [ -z "$db_name" ]; then
-		echo "Datenbank-Name darf nicht leer sein."
-		exit 1
-	fi
-
-	read -s -p "Admin Passwort:             " admin_pwd
+	read -s -p "> Admin Passwort:             " admin_pwd
 	if [ -z "$admin_pwd" ]; then
-		echo "Admin-Passwort darf nicht leer sein."
+		echo "> $(Red 'Fehler:') Admin-Passwort darf nicht leer sein."
 		exit 1
 	fi
 
@@ -351,9 +287,30 @@ $(Blue '   >') "
 	for port in `seq $external_port $end_port`; do
 		local name="postgres_$RANDOM"
 		docker run --name $name --publish $port:5432 --restart=$restart -e POSTGRES_PASSWORD=$admin_pwd -d postgres:$postgres_version
-		sleep 3s
-		docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;"
-		echo "Postgres Container lauscht auf $ip:$port..."
+
+		# Only create database if name was given. Skip on empty.
+		if ! [ -z "$db_name" ]; then
+
+			# Wait 5 seconds for container to start
+			is_running=1
+			while [[ $i -lt 5 ]]; do
+				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
+					is_running=0
+					break
+				fi
+				sleep 1s
+				i=$[$i+1]
+			done
+
+			# Check if container is running and create database if so.
+			if [ "$is_running" -eq 0 ]; then
+				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;"
+			else
+				echo "> $(Red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
+			fi
+		fi
+
+		echo "> Postgres-Container gestartet auf $ip:$port..."
 		echo
     	done
 }
@@ -402,19 +359,17 @@ $(Dim '#') $(print_sys_info_headline)
 $(Dim '#')
 $(Dim $separator)
 
-$(Green '1)') Einzelnen Postgres-Container manuell erstellen
-$(Green '2)') Mehrere Postgres-Container automatisch erstellen
-$(Green '3)') Docker installieren
-$(Green '4)') Sudo installieren
+$(Green '1)') Postgres-Container erstellen & starten
+$(Green '2)') Docker installieren
+$(Green '3)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
     read a
     case $a in
-		1) create_postgres_container;;
-		2) create_multiple_postgres_container;;
-	    3) check_docker_install;;
-		4) install_and_setup_sudo;;
+		1) create_postgres_containers;;
+	    2) check_docker_install;;
+		3) install_and_setup_sudo;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
