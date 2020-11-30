@@ -1,15 +1,26 @@
-## docker-scripts
+# docker-scripts
 
-Just a collection of scripts that wrap around and simplify the use of docker.
+Eine kleine Sammlung von Skripten, die versuchen, die Verwendung von Dockern in meist speziellen Anwendungsfällen zu vereinfachen.
 
-### Easy-Postgres-Containers
+> Just a small collection of scripts that try to simplify the use of docker in mostly special use cases.
 
-> Hinweis: Gibt leider noch keine automatischen Ports.
+## Easy-Postgres-Containers
 
-#### Download
+> Hinweis: Stand v0.4.0 sind leider noch keine automatischen Ports unterstützt.
+
+-   Shell-Menü zur vereinfachten Erzeugung einzelner oder mehrerer Postgres-Container
+-   Linux-Distro übergreifende, automatisierte Installation und Einrichtung von Docker
+
+### Download
 
     wget https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh
 
-#### Ausführen
+### Ausführen
 
     bash epc.sh
+
+oder
+
+    chmod +x epc.sh
+
+    ./epc.sh
