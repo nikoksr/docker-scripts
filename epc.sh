@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.6.0'
+version='v0.7.0'
 
 # Colors
 green='\e[32m'
@@ -254,7 +254,7 @@ $(Dim $separator)
 	echo -ne "
 
    Dies ist $(Red 'die letzte Warnung!')
-   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt ist nicht rückgängig zu machen und
+   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
    $(Red 'Datenverlust') ist eine mögliche Folge!
 
 
@@ -274,10 +274,65 @@ $(Dim $separator)
 	docker rm -f $(docker ps -aq --filter ancestor=postgres)
 }
 
+function remove_all_postgres_images() {
+	echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Alle Postgres-Images löschen')
+$(Dim $separator)
+
+"
+
+	echo -ne " $(Red 'WARNUNG')
+
+   Sie sind im Begriff $(Red 'ALLE(!)') Postgres-Images endgültig zu entfernen!
+   Dies betrifft auch Images, welche als Grundlage für einen laufenden und aktiven Container dienen.
+
+   Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
+   und führen Sie folgenden Befehl aus:
+
+   $(Blue 'docker images | grep 'postgres'')
+
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	echo -ne "
+
+   Dies ist $(Red 'die letzte Warnung!')
+   Es werden ALLE(!) tote sowie aktive Images gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
+   $(Red 'Datenverlust') ist eine mögliche Folge!
+
+
+"
+
+	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	docker rmi -f $(docker images |grep 'postgres')
+}
+
 function create_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
-$(Dim '# ')$(Blue 'Mehrere Postgres Container automatisch erstellen')
+$(Dim '# ')$(Blue 'Postgres-Container erstellen & starten')
 $(Dim $separator)
 
 "
@@ -411,8 +466,9 @@ $(Dim $separator)
 
 $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Alle Postgres-Container entfernen
-$(Green '3)') Docker installieren
-$(Green '4)') Sudo installieren
+$(Green '3)') Alle Postgres-Images entfernen
+$(Green '4)') Docker installieren
+$(Green '5)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
@@ -420,8 +476,9 @@ $(Blue '>') "
     case $a in
 		1) create_postgres_containers;;
 		2) remove_all_postgres_containers;;
-	    3) check_docker_install;;
-		4) install_and_setup_sudo;;
+		3) remove_all_postgres_images;;
+	    4) check_docker_install;;
+		5) install_and_setup_sudo;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
