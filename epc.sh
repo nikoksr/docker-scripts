@@ -53,53 +53,54 @@ $(Dim '# ')$(Blue 'Docker installieren')
 $(Dim $separator)
 
 "
-	# Add user to docker group if not already in it. This is at the beginning so that user will still
-	# be automatically added to docker group even if docker is already installed.
-	add_docker_group
-
 	# Check if docker is already installed.
 	if [ -x "$(command -v docker)" ]; then
 		echo "> Docker ist bereits installiert..."
-        return 0
-    fi
-
-	echo "> Bereite Docker Installation vor..."
-    echo "> Suche Paketmanager..."
-
-    if [ -x "$(command -v pacman)" ]; then
-        echo ">   pacman gefunden..."
-        sudo pacman -S --needed docker
-
-    elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
-        echo ">   apt gefunden..."
-
-		# Apt install command differs between debian and ubuntu
-		os_pretty_name=$(( lsb_release -ds || cat /etc/*release || uname -om ) 2>/dev/null | head -n1)
-		os_name='ubuntu'
-
-		if [[ $os_pretty_name == *"Debian"* ]]; then
-			os_name="debian"
-		fi
-
-		# Run the installer
-		install_docker_apt "$os_name"
-
-	elif [ -x "$(command -v dnf)" ]; then
-        echo ">   dnf gefunden..."
-		install_docker_dnf
-
-	elif [ -x "$(command -v yum)" ]; then
-        echo ">   yum gefunden..."
-		install_docker_yum
-
     else
-        echo ">   Warnung: Es konnte kein unterstützter Paketmanager gefunden werden - Docker-Installation möglicherweise unvollständig und das weitere Vorgehen könnte fehlschlagen."
-        echo ">   Fahre fort..."
+		echo "> Bereite Docker Installation vor..."
+    	echo "> Suche Paketmanager..."
+
+    	if [ -x "$(command -v pacman)" ]; then
+    	    echo ">   pacman gefunden..."
+    	    sudo pacman -S --needed docker
+
+    	elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
+    	    echo ">   apt gefunden..."
+
+			# Apt install command differs between debian and ubuntu
+			os_pretty_name=$(( lsb_release -ds || cat /etc/*release || uname -om ) 2>/dev/null | head -n1)
+			os_name='ubuntu'
+
+			if [[ $os_pretty_name == *"Debian"* ]]; then
+				os_name="debian"
+			fi
+
+			# Run the installer
+			install_docker_apt "$os_name"
+
+		elif [ -x "$(command -v dnf)" ]; then
+    	    echo ">   dnf gefunden..."
+			install_docker_dnf
+
+		elif [ -x "$(command -v yum)" ]; then
+    	    echo ">   yum gefunden..."
+			install_docker_yum
+
+    	else
+    	    echo ">   Warnung: Es konnte kein unterstützter Paketmanager gefunden werden - Docker-Installation möglicherweise unvollständig und das weitere Vorgehen könnte fehlschlagen."
+    	    echo ">   Fahre fort..."
+    	fi
     fi
+
 
 	# Enable docker to start on boot
-	echo ">   Aktiviere Docker-Service Autostart beim Boot..."
+	echo "> Aktiviere Docker-Service Autostart beim Boot..."
 	sudo systemctl enable docker
+
+	# Add user to docker group if not already in it. This is at the beginning so that user will still
+	# be automatically added to docker group even if docker is already installed.
+	echo "> Checke Docker-Gruppe..."
+	add_docker_group
 }
 
 function install_docker_apt() {
@@ -168,9 +169,8 @@ function add_docker_group() {
 
 	echo "> Füge aktuellen Benutzer zur Gruppe hinzu..."
 	sudo usermod -aG docker $USER
-	echo "> Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
+	echo "> $(Blue 'Hinweis:') Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
 	echo "  Die Zugehörigkeit in der Docker-Gruppe ermöglicht es Ihnen, Docker ohne 'root'-Rechte verwendet werden zu können."
-	return 0
 }
 
 function install_and_setup_sudo() {
@@ -221,7 +221,7 @@ $(Dim $separator)
 		exit 1
 	fi
 
-	echo "> Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
+	echo "> $(Blue 'Hinweis:') Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
 	echo "  Die Zugehörigkeit in der Sudo-Gruppe ermöglicht es Ihnen, Befehle mit erweiterten Rechten ausführen zu können."
 }
 
