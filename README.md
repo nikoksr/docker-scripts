@@ -6,8 +6,6 @@ Eine kleine Sammlung von Skripten, die versuchen, die Verwendung von Dockern in 
 
 ## Easy-Postgres-Containers
 
-> Hinweis: Stand v0.4.0 sind leider noch keine automatischen Ports unterstützt.
-
 -   Shell-Menü zur vereinfachten Erzeugung einzelner oder mehrerer Postgres-Container
 -   Linux-Distro übergreifende, automatisierte Installation und Einrichtung von Docker
 
