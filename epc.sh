@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.7.1'
+version='v0.8.0'
 
 # Colors
 green='\e[32m'
@@ -337,9 +337,12 @@ $(Dim $separator)
 
 "
 
+	# Get currently highest port in use
+	highest_port=$(("$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep 'postgres:*' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)" + 1))
+
 	# Anzahl, Port and Postgres Version
 	read -p "> Anzahl Container (1):              " container_count
-	read -p "> Start Port (5432):                 " external_port
+	read -p "> Start Port ($highest_port):                 " external_port
 	read -p "> Postgres Version (latest):         " postgres_version
 
 	if [ -z "$container_count" ]; then
@@ -347,7 +350,7 @@ $(Dim $separator)
 	fi
 
 	if [ -z "$external_port" ]; then
-    	external_port="5432"
+    	external_port=$highest_port
 	fi
 
 	if [ -z "$postgres_version" ]; then
