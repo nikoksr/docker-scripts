@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.5.1'
+version='v0.6.0'
 
 # Colors
 green='\e[32m'
@@ -219,6 +219,61 @@ $(Dim $separator)
 	echo "  Die Zugehörigkeit in der Sudo-Gruppe ermöglicht es Ihnen, Befehle mit erweiterten Rechten ausführen zu können."
 }
 
+function remove_all_postgres_containers() {
+	echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Alle Postgres-Container löschen')
+$(Dim $separator)
+
+"
+
+	echo -ne " $(Red 'WARNUNG')
+
+   Sie sind im Begriff $(Red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
+   Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
+
+   Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
+   und führen Sie folgenden Befehl aus:
+
+   $(Blue 'docker ps -a --filter ancestor=postgres')
+
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	echo -ne "
+
+   Dies ist $(Red 'die letzte Warnung!')
+   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt ist nicht rückgängig zu machen und
+   $(Red 'Datenverlust') ist eine mögliche Folge!
+
+
+"
+
+	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	docker rm -f $(docker ps -aq --filter ancestor=postgres)
+}
+
 function create_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
@@ -355,16 +410,18 @@ $(Dim '#')
 $(Dim $separator)
 
 $(Green '1)') Postgres-Container erstellen & starten
-$(Green '2)') Docker installieren
-$(Green '3)') Sudo installieren
+$(Green '2)') Alle Postgres-Container entfernen
+$(Green '3)') Docker installieren
+$(Green '4)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
     read a
     case $a in
 		1) create_postgres_containers;;
-	    2) check_docker_install;;
-		3) install_and_setup_sudo;;
+		2) remove_all_postgres_containers;;
+	    3) check_docker_install;;
+		4) install_and_setup_sudo;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
