@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.3.0'
+version='v0.3.1'
 
 # Colors
 green='\e[32m'
@@ -304,7 +304,14 @@ $(ColorBlue '   >') "
 	read -p "Datenbank Name:             " db_name
 
 	if [ -z "$db_name" ]; then
-    	db_name="postgres_$(date +%s)"
+		echo "Datenbank-Name darf nicht leer sein."
+		exit 1
+	fi
+
+	read -s -p "Admin Passwort:             " admin_pwd
+	if [ -z "$admin_pwd" ]; then
+		echo "Admin-Passwort darf nicht leer sein."
+		exit 1
 	fi
 
 	echo
@@ -315,11 +322,13 @@ $(ColorBlue '   >') "
 	end_port=$((external_port + container_count - 1))
 
 	for port in `seq $external_port $end_port`; do
-		$(docker run --name $name -p $port:5432 --restart=$restart -d postgres:$postgres_version) && \
-		$(docker exec -it yournamecontainer psql -U postgres -c "CREATE DATABASE $db_name;") && \
+		local name="postgres_$RANDOM"
+		docker run --name $name --publish $port:5432 --restart=$restart -e POSTGRES_PASSWORD=$admin_pwd -d postgres:$postgres_version
+		sleep 3s
+		docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;"
 		echo "Postgres Container lauscht auf $ip:$port..."
 		echo
-    done
+    	done
 }
 
 # menu prints the general and interactive navigation menu.
