@@ -138,9 +138,6 @@ function install_docker_dnf() {
 	echo ">     Bei Fedora 31 oder höher muss die 'backward compatibility für Cgroups' freigeschaltet werden."
 	echo ">     In dem Fall den folgenden Befehl ausführen und System neustarten: "
 	echo '>     sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"'
-
-	echo ">     Starte Docker Service..."
-	sudo systemctl start docker
 }
 
 function install_docker_yum() {
@@ -152,9 +149,6 @@ function install_docker_yum() {
 
 	echo ">     Installiere Docker Engine..."
 	sudo yum install docker-ce docker-ce-cli containerd.io
-
-	echo ">     Starte Docker Service..."
-	sudo systemctl start docker
 }
 
 function add_docker_group() {
@@ -234,9 +228,9 @@ $(Dim $separator)
 "
 
 	# Anzahl, Port and Postgres Version
-	read -p "> Anzahl Container (1):       " container_count
-	read -p "> Start Port (5432):          " external_port
-	read -p "> Postgres Version (latest):  " postgres_version
+	read -p "> Anzahl Container (1):              " container_count
+	read -p "> Start Port (5432):                 " external_port
+	read -p "> Postgres Version (latest):         " postgres_version
 
 	if [ -z "$container_count" ]; then
     	container_count=1
@@ -253,12 +247,12 @@ $(Dim $separator)
 	# Restart policy
 	restart="always"
 	echo
-	echo -ne ">Neustart Verhalten:
-$(Green '   1)') Immer (Standard)
-$(Green '   2)') Nur bei Absturz/Fehler
-$(Green '   3)') Immer, außer wenn explizit gestoppt
-$(Green '   4)') Nie
-$(Blue '    >') "
+	echo -ne "> Neustart Verhalten:
+   $(Green '1)') Immer (Standard)
+   $(Green '2)') Nur bei Absturz/Fehler
+   $(Green '3)') Immer, außer wenn explizit gestoppt
+   $(Green '4)') Nie
+   $(Blue '>') "
 	read a
     case $a in
 		2) restart="on-failure";;
@@ -269,9 +263,10 @@ $(Blue '    >') "
 
 	# Database name
 	echo
-	read -p "> Datenbank Name:             " db_name
+	read -p "> Datenbank Name (leer=keine DB):    " db_name
 
-	read -s -p "> Postgres Passwort:       " admin_pwd
+	# Postgres user password
+	read -s -p "> Postgres Passwort:              " admin_pwd
 	if [ -z "$admin_pwd" ]; then
 		echo "> $(Red 'Fehler:') Admin-Passwort darf nicht leer sein."
 		exit 1
@@ -291,7 +286,7 @@ $(Blue '    >') "
 		# Only create database if name was given. Skip on empty.
 		if ! [ -z "$db_name" ]; then
 
-			# Wait 5 seconds for container to start
+			# Wait 90 seconds for container to start
 			is_running=1
 			while [[ $i -lt 90 ]]; do
 				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
