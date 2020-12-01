@@ -431,17 +431,17 @@ $(Dim $separator)
 }
 
 function list_postgres_containers() {
+		echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Postgres-Container auflisten')
+$(Dim $separator)
+
+"
 	docker ps -a | head -n1
 	docker ps -a | grep 'postgres:*'
 }
 
 function watch_postgres_containers() {
-	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres-Container beobachten')
-$(Dim $separator)
-
-"
 	watch -n 1 "docker ps -a | head -n1 && docker ps -a | grep 'postgres:*'"
 }
 
@@ -488,6 +488,7 @@ $(Dim '#')
 $(Dim '#') $(print_sys_info_headline)
 $(Dim '#')
 $(Dim $separator)
+
 
 $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Postgres-Container auflisten
