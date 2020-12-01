@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.9.0'
+version='v0.10.0'
 
 # Colors
 green='\e[32m'
@@ -431,15 +431,18 @@ $(Dim $separator)
 }
 
 function list_postgres_containers() {
+	docker ps -a | head -n1
+	docker ps -a | grep 'postgres:*'
+}
+
+function watch_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres-Container auflisten')
+$(Dim '# ')$(Blue 'Postgres-Container beobachten')
 $(Dim $separator)
 
 "
-
-	docker ps -a | head -n1
-	docker ps -a | grep 'postgres:*'
+	watch -n 1 "docker ps -a | head -n1 && docker ps -a | grep 'postgres:*'"
 }
 
 function is_user_in_group() {
@@ -488,10 +491,11 @@ $(Dim $separator)
 
 $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Postgres-Container auflisten
-$(Green '3)') Alle Postgres-Container entfernen
-$(Green '4)') Alle Postgres-Images entfernen
-$(Green '5)') Docker installieren
-$(Green '6)') Sudo installieren
+$(Green '3)') Postgres-Container beobachten
+$(Green '4)') Alle Postgres-Container entfernen
+$(Green '5)') Alle Postgres-Images entfernen
+$(Green '6)') Docker installieren
+$(Green '7)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
@@ -499,7 +503,8 @@ $(Blue '>') "
     case $a in
 		1) create_postgres_containers;;
 		2) list_postgres_containers;;
-		3) remove_all_postgres_containers;;
+		3) watch_postgres_containers;;
+		4) remove_all_postgres_containers;;
 		5) remove_all_postgres_images;;
 	    6) check_docker_install;;
 		7) install_and_setup_sudo;;
