@@ -6,8 +6,17 @@ Eine kleine Sammlung von Skripten, die versuchen, die Verwendung von Dockern in 
 
 ## Easy-Postgres-Containers
 
--   Shell-Menü zur vereinfachten Erzeugung einzelner oder mehrerer Postgres-Container
--   Linux-Distro übergreifende, automatisierte Installation und Einrichtung von Docker
+Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beobachten von Postgres-Containern.
+
+### Feature
+
+-   Einen oder mehrere Postgres-Container erstellen & starten
+-   Postgres-Container auflisten
+-   Postgres-Container beobachten
+-   Postgres-Container Live Statistiken
+-   Alle Postgres-Container entfernen
+-   Alle Postgres-Images entfernen
+-   `Docker` und `sudo` automatisch installieren & konfigurieren
 
 ### Download
 
