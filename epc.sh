@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.8.1'
+version='v0.9.0'
 
 # Colors
 green='\e[32m'
@@ -430,6 +430,18 @@ $(Dim $separator)
     	done
 }
 
+function list_postgres_containers() {
+	echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Postgres-Container auflisten')
+$(Dim $separator)
+
+"
+
+	docker ps -a | head -n1
+	docker ps -a | grep 'postgres:*'
+}
+
 function is_user_in_group() {
 	if id -nG "$1" | grep -qw "$2"; then
     	return 0
@@ -475,20 +487,22 @@ $(Dim '#')
 $(Dim $separator)
 
 $(Green '1)') Postgres-Container erstellen & starten
-$(Green '2)') Alle Postgres-Container entfernen
-$(Green '3)') Alle Postgres-Images entfernen
-$(Green '4)') Docker installieren
-$(Green '5)') Sudo installieren
+$(Green '2)') Postgres-Container auflisten
+$(Green '3)') Alle Postgres-Container entfernen
+$(Green '4)') Alle Postgres-Images entfernen
+$(Green '5)') Docker installieren
+$(Green '6)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
     read a
     case $a in
 		1) create_postgres_containers;;
-		2) remove_all_postgres_containers;;
-		3) remove_all_postgres_images;;
-	    4) check_docker_install;;
-		5) install_and_setup_sudo;;
+		2) list_postgres_containers;;
+		3) remove_all_postgres_containers;;
+		5) remove_all_postgres_images;;
+	    6) check_docker_install;;
+		7) install_and_setup_sudo;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
