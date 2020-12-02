@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.11.0'
+version='v0.12.0'
 
 # Colors
 green='\e[32m'
