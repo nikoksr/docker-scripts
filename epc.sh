@@ -441,10 +441,6 @@ $(Dim $separator)
 	docker ps -a | grep 'postgres:*'
 }
 
-function watch_postgres_containers() {
-	watch -n 0 "docker ps -a | head -n1 && docker ps -a | grep 'postgres:*'"
-}
-
 function postgres_containers_stats() {
 	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
 }
@@ -496,12 +492,11 @@ $(Dim $separator)
 
 $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Postgres-Container auflisten
-$(Green '3)') Postgres-Container beobachten
-$(Green '4)') Postgres-Container Live Statistiken
-$(Green '5)') Alle Postgres-Container entfernen
-$(Green '6)') Alle Postgres-Images entfernen
-$(Green '7)') Docker installieren
-$(Green '8)') Sudo installieren
+$(Green '3)') Postgres-Container Live Statistiken
+$(Green '4)') Alle Postgres-Container entfernen
+$(Green '5)') Alle Postgres-Images entfernen
+$(Green '6)') Docker installieren
+$(Green '7)') Sudo installieren
 $(Red '0)') Exit
 
 $(Blue '>') "
@@ -509,12 +504,11 @@ $(Blue '>') "
     case $a in
 		1) create_postgres_containers;;
 		2) list_postgres_containers;;
-		3) watch_postgres_containers;;
-		4) postgres_containers_stats;;
-		5) remove_all_postgres_containers;;
-		6) remove_all_postgres_images;;
-	    7) check_docker_install;;
-		8) install_and_setup_sudo;;
+		3) postgres_containers_stats;;
+		4) remove_all_postgres_containers;;
+		5) remove_all_postgres_images;;
+	    6) check_docker_install;;
+		7) install_and_setup_sudo;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
