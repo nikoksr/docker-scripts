@@ -274,18 +274,17 @@ $(Dim $separator)
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
-function remove_all_postgres_images() {
+function remove_inactive_postgres_images() {
 	echo -ne "
 $(Dim $separator)
-$(Dim '# ')$(Blue 'Alle Postgres-Images löschen')
+$(Dim '# ')$(Blue 'Inaktive Postgres-Images löschen')
 $(Dim $separator)
 
 "
 
 	echo -ne " $(Red 'WARNUNG')
 
-   Sie sind im Begriff $(Red 'ALLE(!)') Postgres-Images endgültig zu entfernen!
-   Dies betrifft auch Images, welche als Grundlage für einen laufenden und aktiven Container dienen.
+   Sie sind im Begriff $(Red 'alle inaktiven') Postgres-Images endgültig zu entfernen!
 
    Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
    und führen Sie folgenden Befehl aus:
@@ -306,27 +305,7 @@ $(Dim $separator)
 		*) exit 0 ;;
     esac
 
-	echo -ne "
-
-   Dies ist $(Red 'die letzte Warnung!')
-   Es werden ALLE(!) tote sowie aktive Images gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
-   $(Red 'Datenverlust') ist eine mögliche Folge!
-
-
-"
-
-	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-    	choice="n"
-	fi
-
-	case $choice in
-		"j"|"J"|"y"|"Y") ;;
-		*) exit 0 ;;
-    esac
-
-	docker rmi -f $(docker images | grep 'postgres')
+	docker rmi $(docker images | grep 'postgres')
 }
 
 function create_postgres_containers() {
@@ -494,7 +473,7 @@ $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Postgres-Container auflisten
 $(Green '3)') Postgres-Container Live Statistiken
 $(Green '4)') Alle Postgres-Container entfernen
-$(Green '5)') Alle Postgres-Images entfernen
+$(Green '5)') Inaktive Postgres-Images entfernen
 $(Green '6)') Docker installieren
 $(Green '7)') Sudo installieren
 $(Red '0)') Exit
@@ -506,7 +485,7 @@ $(Blue '>') "
 		2) list_postgres_containers;;
 		3) postgres_containers_stats;;
 		4) remove_all_postgres_containers;;
-		5) remove_all_postgres_images;;
+		5) remove_inactive_postgres_images;;
 	    6) check_docker_install;;
 		7) install_and_setup_sudo;;
 		0) exit 0;;
