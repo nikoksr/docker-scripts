@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.13.0'
+version='v0.13.1'
 
 # Colors
 green='\e[32m'
@@ -110,7 +110,7 @@ function install_docker_apt() {
 	curl -fsSL "https://download.docker.com/linux/$1/gpg" | apt-key add -
 
 	echo ">     Füge Docker-Stable Apt-Repository hinzu..."
-	add-apt-repository deb [arch=amd64] https://download.docker.com/linux/$1 $(lsb_release -cs) stable
+	add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$1 $(lsb_release -cs) stable"
 
 	echo ">     Installiere Docker Engine..."
 	apt-get update
