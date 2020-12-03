@@ -5,7 +5,7 @@
 ##
 
 # Version
-version='v0.12.0'
+version='v0.13.0'
 
 # Colors
 green='\e[32m'
@@ -45,178 +45,95 @@ Dim(){
 # Functions
 ##
 
-# check_docker_install checks if docker was installed correctly and installs it in case its missing.
-function check_docker_install {
+function is_docker_installed {
+	if ! [ -x "$(command -v docker)" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+# install_docker installs docker, adds the user to docker group and enables the service
+function install_docker {
 	echo -ne "
 $(Dim $separator)
-$(Dim '# ')$(Blue 'Docker installieren')
+$(Dim '# ')$(Blue 'Docker Installation')
 $(Dim $separator)
 
 "
-	# Check if docker is already installed.
-	if [ -x "$(command -v docker)" ]; then
-		echo "> Docker ist bereits installiert..."
+
+	echo "> Bereite Docker Installation vor..."
+    echo "> Suche Paketmanager..."
+    if [ -x "$(command -v pacman)" ]; then
+        echo ">   pacman gefunden..."
+		pacman -S --needed docker
+    elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
+        echo ">   apt gefunden..."
+		# Apt install command differs between debian and ubuntu
+		os_pretty_name=$(( lsb_release -ds || cat /etc/*release || uname -om ) 2>/dev/null | head -n1)
+		os_name='ubuntu'
+		if [[ $os_pretty_name == *"Debian"* ]]; then
+			os_name="debian"
+		fi
+		# Run the installer
+		install_docker_apt "$os_name"
+	elif [ -x "$(command -v dnf)" ]; then
+        echo ">   dnf gefunden..."
+		install_docker_dnf
+	elif [ -x "$(command -v yum)" ]; then
+        echo ">   yum gefunden..."
+		install_docker_yum
     else
-		echo "> Bereite Docker Installation vor..."
-    	echo "> Suche Paketmanager..."
-
-    	if [ -x "$(command -v pacman)" ]; then
-    	    echo ">   pacman gefunden..."
-    	    sudo pacman -S --needed docker
-
-    	elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
-    	    echo ">   apt gefunden..."
-
-			# Apt install command differs between debian and ubuntu
-			os_pretty_name=$(( lsb_release -ds || cat /etc/*release || uname -om ) 2>/dev/null | head -n1)
-			os_name='ubuntu'
-
-			if [[ $os_pretty_name == *"Debian"* ]]; then
-				os_name="debian"
-			fi
-
-			# Run the installer
-			install_docker_apt "$os_name"
-
-		elif [ -x "$(command -v dnf)" ]; then
-    	    echo ">   dnf gefunden..."
-			install_docker_dnf
-
-		elif [ -x "$(command -v yum)" ]; then
-    	    echo ">   yum gefunden..."
-			install_docker_yum
-
-    	else
-    	    echo ">   Warnung: Es konnte kein unterstützter Paketmanager gefunden werden - Docker-Installation möglicherweise unvollständig und das weitere Vorgehen könnte fehlschlagen."
-    	    echo ">   Fahre fort..."
-    	fi
+        echo ">   Warnung: Es konnte kein unterstützter Paketmanager gefunden werden - Docker-Installation möglicherweise unvollständig und das weitere Vorgehen könnte fehlschlagen."
+        echo ">   Fahre fort..."
     fi
 
+	if is_docker_installed; then
+		echo "> Docker wurde erfolgreich installiert..."
+	else
+		echo "> Docker konnte nicht installiert oder gefunden werden..."
+		exit 1
+	fi
 
 	# Enable docker to start on boot
 	echo "> Aktiviere Docker-Service Autostart beim Boot..."
-	sudo systemctl enable docker
-
-	# Add user to docker group if not already in it. This is at the beginning so that user will still
-	# be automatically added to docker group even if docker is already installed.
-	echo "> Checke Docker-Gruppe..."
-	add_docker_group
+	systemctl enable docker
 }
 
 function install_docker_apt() {
 	echo ">     Update apt package index und installiere nötige Pakete um HTTPS Repository benutzen zu können..."
 
-	sudo apt-get update
-	sudo apt-get install \
-    	apt-transport-https \
-    	ca-certificates \
-    	curl \
-    	gnupg-agent \
-    	software-properties-common
+	apt-get update
+	apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
 
 	echo ">     Füge Docker's offiziellen GPG Key hinzu..."
-	curl -fsSL "https://download.docker.com/linux/$1/gpg" | sudo apt-key add -
+	curl -fsSL "https://download.docker.com/linux/$1/gpg" | apt-key add -
 
 	echo ">     Füge Docker-Stable Apt-Repository hinzu..."
-	sudo add-apt-repository \
-   		"deb [arch=amd64] https://download.docker.com/linux/$1 \
-   		$(lsb_release -cs) \
-   		stable"
+	add-apt-repository deb [arch=amd64] https://download.docker.com/linux/$1 $(lsb_release -cs) stable
 
 	echo ">     Installiere Docker Engine..."
-	sudo apt-get update
-	sudo apt-get install docker-ce docker-ce-cli containerd.io
+	apt-get update
+	apt-get install docker-ce docker-ce-cli containerd.io
 }
 
 function install_docker_dnf() {
 	echo ">     Füge Docker-Stable Dnf-Repository hinzu..."
-	sudo dnf -y install dnf-plugins-core
-	sudo dnf config-manager \
-    	--add-repo \
-    	https://download.docker.com/linux/fedora/docker-ce.repo
+	dnf -y install dnf-plugins-core
+	dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
 
 	echo ">     Bei Fedora 31 oder höher muss die 'backward compatibility für Cgroups' freigeschaltet werden."
-	echo ">     In dem Fall den folgenden Befehl ausführen und System neustarten: "
-	echo '>     sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"'
+	echo "       In dem Fall den folgenden Befehl ausführen und System neustarten: "
+	echo '       sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"'
 }
 
 function install_docker_yum() {
 	echo ">     Füge Docker-Stable Yum-Repository hinzu..."
-	sudo yum install -y yum-utils
-	sudo yum-config-manager \
-    	--add-repo \
-    	https://download.docker.com/linux/centos/docker-ce.repo
+	yum install -y yum-utils
+	yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
 
 	echo ">     Installiere Docker Engine..."
-	sudo yum install docker-ce docker-ce-cli containerd.io
-}
-
-function add_docker_group() {
-	if is_user_in_group $USER docker; then
-		return 0
-	fi
-
-	if ! grep -q -E "^docker:" /etc/group; then
-		echo "> Erstelle Docker Gruppe..."
-    	sudo groupadd docker
-    fi
-
-	echo "> Füge aktuellen Benutzer zur Gruppe hinzu..."
-	sudo usermod -aG docker $USER
-	echo "> $(Blue 'Hinweis:') Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
-	echo "  Die Zugehörigkeit in der Docker-Gruppe ermöglicht es Ihnen, Docker ohne 'root'-Rechte verwendet werden zu können."
-}
-
-function install_and_setup_sudo() {
-	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Sudo installieren')
-$(Dim $separator)
-
-"
-
-	if [ -x "$(command -v sudo)" ]; then
-		echo "> Sudo ist bereits installiert..."
-		return 0
-    fi
-
-	echo -ne " $(Red 'WARNUNG')
-
-   Zur Installation des 'sudo' Programm's wird der Skript versuchen sich als Benutzer root anzumelden.
-   Der Benutzer root hat unter Linux uneingeschränkte(!) Nutzungsrechte, welche benötigt werden, um das
-   Programm 'sudo' installieren und konfigurieren zu können.
-   Für jegliche Fehler, Probleme oder ähnliches ungewolltes Fehlverhalten wird nicht gehaftet. Dies
-   ist freie und offene Software, welche ohne jegliche Garantie und Gewährleistung kommt.
-   Sollten Sie sich unsicher sein, lassen Sie das Programm 'sudo' von einem Systemadministrator o.Ä.
-   Ihres Vertrauens installieren und führen Sie danach diesen Skript erneut aus.
-
-"
-
-	read -p "> Möchten Sie fortfahren (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-    	choice="n"
-	fi
-
-	case $choice in
-		"j"|"J"|"y"|"Y") ;;
-		*) exit 0 ;;
-    esac
-
-	# Try to install sudo
-	echo "> Melde Nutzer root an..."
-	local og_user=$USER
-	su -c "apt-get update && apt-get install sudo && if grep -Eiq '%sudo\s+ALL\s*=\s*\(ALL(:ALL)?\)\s+ALL' /etc/sudoers; then usermod -aG sudo '$og_user'; elif ! grep -Eiq 'user\s+ALL\s*=\s*\(ALL(:ALL)?\)\s+ALL' /etc/sudoers; then echo '%sudo ALL=(ALL) ALL' >> /etc/sudoers; fi; exit" -
-
-	if [ -x "$(command -v sudo)" ]; then
-		echo "> Programm 'sudo' wurde erfolgreich installiert..."
-	else
-		echo "> Programm 'sudo' konnte nicht installiert oder gefunden werden..."
-		exit 1
-	fi
-
-	echo "> $(Blue 'Hinweis:') Sie müssen sich nun einmalig ab- und wieder anmelden, um die neue Gruppenzugehörigkeit zu aktivieren."
-	echo "  Die Zugehörigkeit in der Sudo-Gruppe ermöglicht es Ihnen, Befehle mit erweiterten Rechten ausführen zu können."
+	yum install docker-ce docker-ce-cli containerd.io
 }
 
 function remove_all_postgres_containers() {
@@ -274,17 +191,17 @@ $(Dim $separator)
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
-function remove_inactive_postgres_images() {
+function remove_unused_postgres_images() {
 	echo -ne "
 $(Dim $separator)
-$(Dim '# ')$(Blue 'Inaktive Postgres-Images löschen')
+$(Dim '# ')$(Blue 'Ungenutzte Postgres-Images löschen')
 $(Dim $separator)
 
 "
 
 	echo -ne " $(Red 'WARNUNG')
 
-   Sie sind im Begriff $(Red 'alle inaktiven') Postgres-Images endgültig zu entfernen!
+   Sie sind im Begriff $(Red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
 
    Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
    und führen Sie folgenden Befehl aus:
@@ -367,7 +284,7 @@ $(Dim $separator)
 	# Postgres user password
 	read -s -p "> Postgres Passwort:              " admin_pwd
 	if [ -z "$admin_pwd" ]; then
-		echo "> $(Red 'Fehler:') Admin-Passwort darf nicht leer sein."
+		echo "> $(Red 'Fehler:') Postgres Passwort darf nicht leer sein."
 		exit 1
 	fi
 
@@ -424,39 +341,8 @@ function postgres_containers_stats() {
 	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
 }
 
-function is_user_in_group() {
-	if id -nG "$1" | grep -qw "$2"; then
-    	return 0
-	fi
-
-	return 1
-}
-
-function print_sys_info_headline() {
-	# Docker Install Status
-	docker_install=$(Dim 'Docker-Install  ')$(Red "$x_symbol")
-	if [ -x "$(command -v docker)" ]; then
-		docker_install=$(Dim 'Docker-Install  ')$(Green "$checkmark")
-    fi
-
-	# Docker Group
-	docker_group=$(Dim 'Docker-Gruppe  ')$(Green "$checkmark")
-	if ! is_user_in_group $USER 'docker'; then
-		docker_group=$(Dim 'Docker-Gruppe  ')$(Red "$x_symbol")
-	fi
-
-	# Sudo Install Status
-	sudo_install=$(Dim 'Sudo-Install  ')$(Red "$x_symbol")
-	if [ -x "$(command -v sudo)" ]; then
-		sudo_install=$(Dim 'Sudo-Install  ')$(Green "$checkmark")
-    fi
-
-	echo -ne "$docker_install  $docker_group  $sudo_install"
-}
-
-# menu prints the general and interactive navigation menu.
-function menu(){
-echo -ne "
+function print_header() {
+	echo -ne "
 $(Dim $separator)
 $(Dim '#')
 $(Dim '#') $(Blue 'Easy-Postgres-Containers '$version'')
@@ -464,38 +350,108 @@ $(Dim '#')
 $(Dim '#') $(Dim 'Webseite:') $(Blue 'https://github.com/nikoksr/docker-scripts')
 $(Dim '#') $(Dim 'Lizenz:')   $(Blue 'https://github.com/nikoksr/docker-scripts/LICENSE')
 $(Dim '#')
-$(Dim '#') $(print_sys_info_headline)
-$(Dim '#')
-$(Dim $separator)
+$(Dim $separator)"
+}
+
+# menu prints the general and interactive navigation menu.
+function menu(){
+print_header
+
+echo -ne "
 
 
 $(Green '1)') Postgres-Container erstellen & starten
 $(Green '2)') Postgres-Container auflisten
 $(Green '3)') Postgres-Container Live Statistiken
 $(Green '4)') Alle Postgres-Container entfernen
-$(Green '5)') Inaktive Postgres-Images entfernen
-$(Green '6)') Docker installieren
-$(Green '7)') Sudo installieren
+$(Green '5)') Ungenutzte Postgres-Images entfernen
 $(Red '0)') Exit
 
 $(Blue '>') "
     read a
     case $a in
 		1) create_postgres_containers;;
-		2) list_postgres_containers;;
-		3) postgres_containers_stats;;
+		2) list_postgres_containers; clear; menu;;
+		3) postgres_containers_stats; clear; menu;;
 		4) remove_all_postgres_containers;;
-		5) remove_inactive_postgres_images;;
-	    6) check_docker_install;;
-		7) install_and_setup_sudo;;
+		5) remove_unused_postgres_images;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
     esac
 }
 
+function is_user_root {
+	if [ "$EUID" -ne 0 ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
+function is_user_in_docker_group {
+		if id -nG "$USER" | grep -qw "docker"; then
+    		return 0
+		fi
+
+		return 1
+}
+
+function are_permissions_sufficient {
+	# If docker is not installed user has to be root
+	if ! is_docker_installed ; then
+		if is_user_root; then
+			return 0
+		else
+			echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Docker Installation')
+$(Dim $separator)
+
+Docker ist enweder nicht installiert oder die Installation konnte nicht gefunden werden. Bitte starten
+Sie den Skript als 'root' Benutzer, um die automatische Installation und Einrichtung von Docker zu starten.
+"
+			return 1
+		fi
+	fi
+
+	# If docker is installed user has to be in docker group
+	if ! is_user_in_docker_group && ! is_user_root; then
+			echo -ne "
+$(Dim $separator)
+$(Dim '# ')$(Blue 'Berechtigung')
+$(Dim $separator)
+
+Der aktuelle Benutzer muss entweder Mitglied der 'docker'-Gruppe sein oder dieser Skript
+muss als 'root' Benutzer ausgeführt werden.
+Um den aktuellen Benutzer zur Gruppe 'docker' hinzuzufügen, führen Sie folgenden Befehl aus:
+
+  usermod -a -G docker $USER && newgrp docker
+
+Beende Skript aufgrund von unzureichenden Berechtigungen.
+"
+		return 1
+	else
+		return 0
+	fi
+}
+
 # entrypoint for the application.
-function entrypoint(){
+function entrypoint() {
+	# Cancel on ctrl+c
 	trap "exit" INT
+
+	# Check if user permissions are sufficient
+	if ! are_permissions_sufficient; then
+		exit 1
+	fi
+
+	# Install docker if not already
+	if ! is_docker_installed ; then
+		install_docker
+	fi
+
+	# Start options menu only when dependencies are statisfied
+	clear
 	menu
 }
 
