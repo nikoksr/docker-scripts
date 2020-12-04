@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.15.3'
+version='v0.15.4'
 
 # Colors
 green='\e[32m'
@@ -56,6 +56,21 @@ dim() {
 ##
 # Functions
 ##
+is_wsl() {
+	case "$(uname -r)" in
+	*microsoft* ) true ;; # WSL 2
+	*Microsoft* ) true ;; # WSL 1
+	* ) false;;
+	esac
+}
+
+is_darwin() {
+	case "$(uname -s)" in
+	*darwin* ) true ;;
+	*Darwin* ) true ;;
+	* ) false;;
+	esac
+}
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
