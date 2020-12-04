@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 set -e
 
 # Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.15.2'
+version='v0.15.3'
 
 # Colors
 green='\e[32m'
@@ -32,7 +32,7 @@ CHANNEL="stable"
 DOWNLOAD_URL="https://download.docker.com"
 REPO_FILE="docker-ce.repo"
 
-sh_c='sh -c'
+sh_c='bash -c'
 
 ##
 # Color Functions
@@ -596,7 +596,7 @@ $(blue '>') "
 }
 
 is_user_root() {
-	if [ "$EUID" = 0 ]; then
+	if [ "$EUID" -eq 0 ]; then
 		return 0
 	else
 		return 1
