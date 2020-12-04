@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.15.1'
+version='v0.15.2'
 
 # Colors
 green='\e[32m'
@@ -128,7 +128,7 @@ check_forked() {
 	fi
 }
 
-do_install() {
+install_docker() {
 	# perform some very rudimentary platform detection
 	echo "> Bereite Docker Installation vor..."
 	echo "> Versuche Platform zu erkennen..."
@@ -377,6 +377,9 @@ $(Dim $separator)
 		*) exit 0 ;;
     esac
 
+	echo "> Entferne Container"
+	echo
+
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
@@ -410,6 +413,9 @@ $(Dim $separator)
 		"j"|"J"|"y"|"Y") ;;
 		*) exit 0 ;;
     esac
+
+	echo "> Entferne Images"
+	echo
 
 	docker rmi $(docker images | grep 'postgres')
 }
@@ -594,7 +600,7 @@ $(Blue '>') "
 }
 
 is_user_root() {
-	if [ "$EUID" -ne 0 ]; then
+	if [ "$EUID" != 0 ]; then
 		return 1
 	else
 		return 0
