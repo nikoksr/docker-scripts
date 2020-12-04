@@ -18,11 +18,7 @@ blue='\e[34m'
 red='\e[31m'
 dim='\e[2m'
 undim='\e[22m'
-clear='\e[0m'
-
-# Unicode Symbols
-checkmark='\u2713'
-x_symbol='\u2716'
+no_color='\e[0m'
 
 # Bar
 separator='##############################################################'
@@ -41,20 +37,20 @@ sh_c='sh -c'
 ##
 # Color Functions
 ##
-Green(){
-	echo -ne $green$1$clear
+green() {
+	echo "$green$1$no_color"
 }
 
-Blue(){
-	echo -ne $blue$1$clear
+blue() {
+	echo "$blue$1$no_color"
 }
 
-Red(){
-	echo -ne $red$1$clear
+red() {
+	echo "$red$1$no_color"
 }
 
-Dim(){
-	echo -ne $dim$1$clear
+dim() {
+	echo "$dim$1$no_color"
 }
 
 ##
@@ -327,21 +323,21 @@ install_docker() {
 
 remove_all_postgres_containers() {
 	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Alle Postgres-Container löschen')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Alle Postgres-Container löschen')
+$(dim $separator)
 
 "
 
-	echo -ne " $(Red 'WARNUNG')
+	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(Red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
+   Sie sind im Begriff $(red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
    Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
 
    Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
    und führen Sie folgenden Befehl aus:
 
-   $(Blue 'docker ps -a | grep 'postgres:*'')
+   $(blue 'docker ps -a | grep 'postgres:*'')
 
 
 "
@@ -359,9 +355,9 @@ $(Dim $separator)
 
 	echo -ne "
 
-   Dies ist $(Red 'die letzte Warnung!')
+   Dies ist $(red 'die letzte Warnung!')
    Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
-   $(Red 'Datenverlust') ist eine mögliche Folge!
+   $(red 'Datenverlust') ist eine mögliche Folge!
 
 
 "
@@ -385,20 +381,20 @@ $(Dim $separator)
 
 remove_unused_postgres_images() {
 	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Ungenutzte Postgres-Images löschen')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
+$(dim $separator)
 
 "
 
-	echo -ne " $(Red 'WARNUNG')
+	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(Red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
+   Sie sind im Begriff $(red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
 
    Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
    und führen Sie folgenden Befehl aus:
 
-   $(Blue 'docker images | grep 'postgres'')
+   $(blue 'docker images | grep 'postgres'')
 
 
 "
@@ -422,9 +418,9 @@ $(Dim $separator)
 
 create_postgres_containers() {
 	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres-Container erstellen & starten')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Postgres-Container erstellen & starten')
+$(dim $separator)
 
 "
 
@@ -459,11 +455,11 @@ $(Dim $separator)
 	restart="always"
 	echo
 	echo -ne "> Neustart Verhalten:
-   $(Green '1)') Immer (Standard)
-   $(Green '2)') Nur bei Absturz/Fehler
-   $(Green '3)') Immer, außer wenn explizit gestoppt
-   $(Green '4)') Nie
-   $(Blue '>') "
+   $(green '1)') Immer (Standard)
+   $(green '2)') Nur bei Absturz/Fehler
+   $(green '3)') Immer, außer wenn explizit gestoppt
+   $(green '4)') Nie
+   $(blue '>') "
 	read a
     case $a in
 		2) restart="on-failure";;
@@ -479,7 +475,7 @@ $(Dim $separator)
 	# Postgres user password
 	read -s -p "> Postgres Passwort:              " admin_pwd
 	if [ -z "$admin_pwd" ]; then
-		echo "> $(Red 'Fehler:') Postgres Passwort darf nicht leer sein."
+		echo "> $(red 'Fehler:') Postgres Passwort darf nicht leer sein."
 		exit 1
 	fi
 
@@ -512,7 +508,7 @@ $(Dim $separator)
 			if [ "$is_running" -eq 0 ]; then
 				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;"
 			else
-				echo "> $(Red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
+				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
 			fi
 		fi
 
@@ -523,9 +519,9 @@ $(Dim $separator)
 
 list_postgres_containers() {
 		echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres-Container auflisten')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Postgres-Container auflisten')
+$(dim $separator)
 
 "
 	docker ps -a | head -n1
@@ -538,9 +534,9 @@ postgres_containers_stats() {
 
 postgres_containers_logs() {
 		echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Postgres-Container Logs')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Postgres-Container Logs')
+$(dim $separator)
 
 "
 	docker container ls | grep 'postgres:*'
@@ -555,20 +551,20 @@ Container-ID
 		exit 1
 	fi
 
-	clear
+	no_color
 	docker container logs -f "$id"
 }
 
 print_header() {
 	echo -ne "
-$(Dim $separator)
-$(Dim '#')
-$(Dim '#') $(Blue 'Easy-Postgres-Containers '$version'')
-$(Dim '#')
-$(Dim '#') $(Dim 'Webseite:') $(Blue 'https://github.com/nikoksr/docker-scripts')
-$(Dim '#') $(Dim 'Lizenz:')   $(Blue 'https://github.com/nikoksr/docker-scripts/LICENSE')
-$(Dim '#')
-$(Dim $separator)"
+$(dim $separator)
+$(dim '#')
+$(dim '#') $(blue 'Easy-Postgres-Containers '$version'')
+$(dim '#')
+$(dim '#') $(dim 'Webseite:') $(blue 'https://github.com/nikoksr/docker-scripts')
+$(dim '#') $(dim 'Lizenz:')   $(blue 'https://github.com/nikoksr/docker-scripts/LICENSE')
+$(dim '#')
+$(dim $separator)"
 }
 
 # menu prints the general and interactive navigation menu.
@@ -577,15 +573,15 @@ print_header
 
 echo -ne "
 
-$(Green '1)') Postgres-Container erstellen & starten
-$(Green '2)') Postgres-Container auflisten
-$(Green '3)') Postgres-Container Live Statistiken
-$(Green '4)') Postgres-Container Logs
-$(Green '5)') Alle Postgres-Container entfernen
-$(Green '6)') Ungenutzte Postgres-Images entfernen
-$(Red '0)') Exit
+$(green '1)') Postgres-Container erstellen & starten
+$(green '2)') Postgres-Container auflisten
+$(green '3)') Postgres-Container Live Statistiken
+$(green '4)') Postgres-Container Logs
+$(green '5)') Alle Postgres-Container entfernen
+$(green '6)') Ungenutzte Postgres-Images entfernen
+$(red '0)') Exit
 
-$(Blue '>') "
+$(blue '>') "
     read a
     case $a in
 		1) create_postgres_containers;;
@@ -595,15 +591,15 @@ $(Blue '>') "
 		5) remove_all_postgres_containers;;
 		6) remove_unused_postgres_images;;
 		0) exit 0;;
-		*) echo -e $red"Warnung: Option existiert nicht."$clear; menu;;
+		*) echo -e $red"Warnung: Option existiert nicht."$no_color; menu;;
     esac
 }
 
 is_user_root() {
-	if [ "$EUID" != 0 ]; then
-		return 1
-	else
+	if [ "$EUID" = 0 ]; then
 		return 0
+	else
+		return 1
 	fi
 }
 
@@ -622,9 +618,9 @@ are_permissions_sufficient() {
 			return 0
 		else
 			echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Docker Installation')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Docker Installation')
+$(dim $separator)
 
 Docker ist enweder nicht installiert oder die Installation konnte nicht gefunden werden. Bitte starten
 Sie den Skript als 'root' Benutzer, um die automatische Installation und Einrichtung von Docker zu starten.
@@ -636,9 +632,9 @@ Sie den Skript als 'root' Benutzer, um die automatische Installation und Einrich
 	# If docker is installed user has to be in docker group
 	if ! is_user_in_docker_group && ! is_user_root; then
 			echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Berechtigung')
-$(Dim $separator)
+$(dim $separator)
+$(dim '# ')$(blue 'Berechtigung')
+$(dim $separator)
 
 Der aktuelle Benutzer muss entweder Mitglied der 'docker'-Gruppe sein oder dieser Skript
 muss als 'root' Benutzer ausgeführt werden.
