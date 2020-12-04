@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.15.0'
+version='v0.15.1'
 
 # Colors
 green='\e[32m'
@@ -325,7 +325,7 @@ do_install() {
 	exit 1
 }
 
-function remove_all_postgres_containers() {
+remove_all_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Alle Postgres-Container löschen')
@@ -380,7 +380,7 @@ $(Dim $separator)
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
-function remove_unused_postgres_images() {
+remove_unused_postgres_images() {
 	echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Ungenutzte Postgres-Images löschen')
@@ -414,7 +414,7 @@ $(Dim $separator)
 	docker rmi $(docker images | grep 'postgres')
 }
 
-function create_postgres_containers() {
+create_postgres_containers() {
 	echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Postgres-Container erstellen & starten')
@@ -515,7 +515,7 @@ $(Dim $separator)
     	done
 }
 
-function list_postgres_containers() {
+list_postgres_containers() {
 		echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Postgres-Container auflisten')
@@ -526,11 +526,11 @@ $(Dim $separator)
 	docker ps -a | grep 'postgres:*'
 }
 
-function postgres_containers_stats() {
+postgres_containers_stats() {
 	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
 }
 
-function postgres_containers_logs() {
+postgres_containers_logs() {
 		echo -ne "
 $(Dim $separator)
 $(Dim '# ')$(Blue 'Postgres-Container Logs')
@@ -553,7 +553,7 @@ Container-ID
 	docker container logs -f "$id"
 }
 
-function print_header() {
+print_header() {
 	echo -ne "
 $(Dim $separator)
 $(Dim '#')
@@ -566,7 +566,7 @@ $(Dim $separator)"
 }
 
 # menu prints the general and interactive navigation menu.
-function menu(){
+menu(){
 print_header
 
 echo -ne "
@@ -649,7 +649,7 @@ Beende Skript aufgrund von unzureichenden Berechtigungen.
 }
 
 # entrypoint for the application.
-function entrypoint() {
+entrypoint() {
 	# Cancel on ctrl+c
 	trap "exit" INT
 
