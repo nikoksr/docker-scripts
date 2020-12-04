@@ -593,7 +593,7 @@ $(Blue '>') "
     esac
 }
 
-function is_user_root {
+is_user_root() {
 	if [ "$EUID" -ne 0 ]; then
 		return 1
 	else
@@ -601,7 +601,7 @@ function is_user_root {
 	fi
 }
 
-function is_user_in_docker_group {
+is_user_in_docker_group() {
 		if id -nG "$USER" | grep -qw "docker"; then
     		return 0
 		fi
@@ -609,7 +609,7 @@ function is_user_in_docker_group {
 		return 1
 }
 
-function are_permissions_sufficient {
+are_permissions_sufficient() {
 	# If docker is not installed user has to be root
 	if ! command_exists docker ; then
 		if is_user_root; then
