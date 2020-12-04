@@ -1,11 +1,16 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
+set -e
+
+# Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
+# Download link of original docker script: https://get.docker.com
+
 
 ##
 # Variables
 ##
 
 # Version
-version='v0.14.0'
+version='v0.15.0'
 
 # Colors
 green='\e[32m'
@@ -21,6 +26,17 @@ x_symbol='\u2716'
 
 # Bar
 separator='##############################################################'
+
+# The channel to install from:
+#   * nightly
+#   * test
+#   * stable
+#   * edge (deprecated)
+CHANNEL="stable"
+DOWNLOAD_URL="https://download.docker.com"
+REPO_FILE="docker-ce.repo"
+
+sh_c='sh -c'
 
 ##
 # Color Functions
@@ -45,95 +61,268 @@ Dim(){
 # Functions
 ##
 
-function is_docker_installed {
-	if ! [ -x "$(command -v docker)" ]; then
-		return 1
-	fi
-
-	return 0
+command_exists() {
+	command -v "$@" > /dev/null 2>&1
 }
 
-# install_docker installs docker, adds the user to docker group and enables the service
-function install_docker {
-	echo -ne "
-$(Dim $separator)
-$(Dim '# ')$(Blue 'Docker Installation')
-$(Dim $separator)
+get_distribution() {
+	lsb_dist=""
+	# Every system that we officially support has /etc/os-release
+	if [ -r /etc/os-release ]; then
+		lsb_dist="$(. /etc/os-release && echo "$ID")"
+	fi
+	# Returning an empty string here should be alright since the
+	# case statements don't act unless you provide an actual value
+	echo "$lsb_dist"
+}
 
-"
+# add_debian_backport_repo adds the necessary debian backport to source list if not already in it.
+# Some package installs may fail otherwise.
+add_debian_backport_repo() {
+	debian_version="$1"
+	backports="deb http://ftp.debian.org/debian $debian_version-backports main"
+	if ! grep -Fxq "$backports" /etc/apt/sources.list; then
+		(set -x; $sh_c "echo \"$backports\" >> /etc/apt/sources.list")
+	fi
+}
 
-	echo "> Bereite Docker Installation vor..."
-    echo "> Suche Paketmanager..."
-    if [ -x "$(command -v pacman)" ]; then
-        echo ">   pacman gefunden..."
-		pacman -S --needed docker
-    elif [ -x "$(command -v apt)" ] || [ -x "$(command -v apt-get)" ]; then
-        echo ">   apt gefunden..."
-		# Apt install command differs between debian and ubuntu
-		os_pretty_name=$(( lsb_release -ds || cat /etc/*release || uname -om ) 2>/dev/null | head -n1)
-		os_name='ubuntu'
-		if [[ $os_pretty_name == *"Debian"* ]]; then
-			os_name="debian"
+# check_forked checks if this is a forked Linux distro for example Kali is forked from Debian.
+check_forked() {
+
+	# Check for lsb_release command existence, it usually exists in forked distros
+	if command_exists lsb_release; then
+		# Check if the `-u` option is supported
+		set +e
+		lsb_release -a -u > /dev/null 2>&1
+		lsb_release_exit_code=$?
+		set -e
+
+		# Check if the command has exited successfully, it means we're in a forked distro
+		if [ "$lsb_release_exit_code" = "0" ]; then
+			# Get the upstream release info
+			lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[:space:]')
+			dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[:space:]')
+		else
+			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
+				if [ "$lsb_dist" = "osmc" ]; then
+					# OSMC runs Raspbian
+					lsb_dist=raspbian
+				else
+					# We're Debian and don't even know it!
+					lsb_dist=debian
+				fi
+				dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
+				case "$dist_version" in
+					10)
+						dist_version="buster"
+					;;
+					9)
+						dist_version="stretch"
+					;;
+					8|'Kali Linux 2')
+						dist_version="jessie"
+					;;
+				esac
+			fi
 		fi
-		# Run the installer
-		install_docker_apt "$os_name"
-	elif [ -x "$(command -v dnf)" ]; then
-        echo ">   dnf gefunden..."
-		install_docker_dnf
-	elif [ -x "$(command -v yum)" ]; then
-        echo ">   yum gefunden..."
-		install_docker_yum
-    else
-        echo ">   Warnung: Es konnte kein unterstützter Paketmanager gefunden werden - Docker-Installation möglicherweise unvollständig und das weitere Vorgehen könnte fehlschlagen."
-        echo ">   Fahre fort..."
-    fi
+	fi
+}
 
-	if is_docker_installed; then
-		echo "> Docker wurde erfolgreich installiert..."
-	else
-		echo "> Docker konnte nicht installiert oder gefunden werden..."
+do_install() {
+	# perform some very rudimentary platform detection
+	echo "> Bereite Docker Installation vor..."
+	echo "> Versuche Platform zu erkennen..."
+	lsb_dist=$( get_distribution )
+	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+
+	if is_wsl; then
+		echo
+		echo ">   WSL ERKANNT: Es wird empfohlen Docker-Desktop für Windows zu verwenden"
+		echo "     -> https://www.docker.com/products/docker-desktop"
+		echo
 		exit 1
 	fi
 
-	# Enable docker to start on boot
-	echo "> Aktiviere Docker-Service Autostart beim Boot..."
-	systemctl enable docker
-}
+	case "$lsb_dist" in
 
-function install_docker_apt() {
-	echo ">     Update apt package index und installiere nötige Pakete um HTTPS Repository benutzen zu können..."
+		ubuntu)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+				dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+			fi
+		;;
 
-	apt-get update
-	apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+		debian|raspbian)
+			dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
+			case "$dist_version" in
+				10)
+					dist_version="buster"
+				;;
+				9)
+					dist_version="stretch"
+				;;
+				8)
+					dist_version="jessie"
+				;;
+			esac
+		;;
 
-	echo ">     Füge Docker's offiziellen GPG Key hinzu..."
-	curl -fsSL "https://download.docker.com/linux/$1/gpg" | apt-key add -
+		centos|rhel)
+			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+			fi
+		;;
 
-	echo ">     Füge Docker-Stable Apt-Repository hinzu..."
-	add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$1 $(lsb_release -cs) stable"
+		*)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --release | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+			fi
+		;;
 
-	echo ">     Installiere Docker Engine..."
-	apt-get update
-	apt-get install docker-ce docker-ce-cli containerd.io
-}
+	esac
 
-function install_docker_dnf() {
-	echo ">     Füge Docker-Stable Dnf-Repository hinzu..."
-	dnf -y install dnf-plugins-core
-	dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+	# Check if this is a forked Linux distro
+	check_forked
 
-	echo ">     Bei Fedora 31 oder höher muss die 'backward compatibility für Cgroups' freigeschaltet werden."
-	echo "       In dem Fall den folgenden Befehl ausführen und System neustarten: "
-	echo '       sudo grubby --update-kernel=ALL --args="systemd.unified_cgroup_hierarchy=0"'
-}
+	# Run setup for each distro accordingly
+	case "$lsb_dist" in
+		ubuntu|debian|raspbian)
+			echo ">   $lsb_dist erkannt..."
+			pre_reqs="apt-transport-https ca-certificates curl"
+			if [ "$lsb_dist" = "debian" ]; then
+				# libseccomp2 does not exist for debian jessie main repos for aarch64
+				if [ "$(uname -m)" = "aarch64" ] && [ "$dist_version" = "jessie" ]; then
+					echo ">     Füge potenziell fehlende Debian-Backports hinzu..."
+					add_debian_backport_repo "$dist_version"
+				fi
+			fi
 
-function install_docker_yum() {
-	echo ">     Füge Docker-Stable Yum-Repository hinzu..."
-	yum install -y yum-utils
-	yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+			echo ">     Update apt package index und installiere nötige Pakete um HTTPS Repository benutzen zu können..."
+			if ! command -v gpg > /dev/null; then
+				pre_reqs="$pre_reqs gnupg"
+			fi
+			apt_repo="deb [arch=$(dpkg --print-architecture)] $DOWNLOAD_URL/linux/$lsb_dist $dist_version $CHANNEL"
+			(
+				$sh_c 'apt-get update -qq >/dev/null'
+				$sh_c "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $pre_reqs >/dev/null"
+				$sh_c "curl -fsSL \"$DOWNLOAD_URL/linux/$lsb_dist/gpg\" | apt-key add -qq - >/dev/null"
+				$sh_c "echo \"$apt_repo\" > /etc/apt/sources.list.d/docker.list"
+				$sh_c 'apt-get update -qq >/dev/null'
+			)
+			pkg_version=""
+			if [ -n "$VERSION" ]; then
+				# Will work for incomplete versions IE (17.12), but may not actually grab the "latest" if in the test channel
+				pkg_pattern="$(echo "$VERSION" | sed "s/-ce-/~ce~.*/g" | sed "s/-/.*/g").*-0~$lsb_dist"
+				search_command="apt-cache madison 'docker-ce' | grep '$pkg_pattern' | head -1 | awk '{\$1=\$1};1' | cut -d' ' -f 3"
+				pkg_version="$($sh_c "$search_command")"
+				echo ">     Suche in Repository nach Version '$VERSION'"
+				if [ -z "$pkg_version" ]; then
+					echo
+					echo ">     FEHLER: '$VERSION' konnte nicht in den apt-cache madison Ergebnissen gefunden werden."
+					echo
+					exit 1
+				fi
+				search_command="apt-cache madison 'docker-ce-cli' | grep '$pkg_pattern' | head -1 | awk '{\$1=\$1};1' | cut -d' ' -f 3"
+				# Don't insert an = for cli_pkg_version, we'll just include it later
+				cli_pkg_version="$($sh_c "$search_command")"
+				pkg_version="=$pkg_version"
+			fi
 
-	echo ">     Installiere Docker Engine..."
-	yum install docker-ce docker-ce-cli containerd.io
+			echo ">     Installiere Docker..."
+			(
+				if [ -n "$cli_pkg_version" ]; then
+					$sh_c "apt-get install -y -qq --no-install-recommends docker-ce-cli=$cli_pkg_version >/dev/null"
+				fi
+				$sh_c "apt-get install -y -qq --no-install-recommends docker-ce$pkg_version >/dev/null"
+			)
+			exit 0
+			;;
+		centos|fedora|rhel)
+			echo ">   $lsb_dist erkannt..."
+			yum_repo="$DOWNLOAD_URL/linux/$lsb_dist/$REPO_FILE"
+			if ! curl -Ifs "$yum_repo" > /dev/null; then
+				echo ">     Fehler: Konnte nicht mit 'curl' die Repository-Datei $yum_repo holen. Existiert die Datei?"
+				exit 1
+			fi
+			if [ "$lsb_dist" = "fedora" ]; then
+				pkg_manager="dnf"
+				config_manager="dnf config-manager"
+				enable_channel_flag="--set-enabled"
+				disable_channel_flag="--set-disabled"
+				pre_reqs="dnf-plugins-core"
+				pkg_suffix="fc$dist_version"
+			else
+				pkg_manager="yum"
+				config_manager="yum-config-manager"
+				enable_channel_flag="--enable"
+				disable_channel_flag="--disable"
+				pre_reqs="yum-utils"
+				pkg_suffix="el"
+			fi
+
+			echo ">     Füge Docker-Stable Dnf-Repository hinzu..."
+			(
+				$sh_c "$pkg_manager install -y -q $pre_reqs"
+				$sh_c "$config_manager --add-repo $yum_repo"
+
+				if [ "$CHANNEL" != "stable" ]; then
+					$sh_c "$config_manager $disable_channel_flag docker-ce-*"
+					$sh_c "$config_manager $enable_channel_flag docker-ce-$CHANNEL"
+				fi
+				$sh_c "$pkg_manager makecache"
+			)
+			pkg_version=""
+			if [ -n "$VERSION" ]; then
+				pkg_pattern="$(echo "$VERSION" | sed "s/-ce-/\\\\.ce.*/g" | sed "s/-/.*/g").*$pkg_suffix"
+				search_command="$pkg_manager list --showduplicates 'docker-ce' | grep '$pkg_pattern' | tail -1 | awk '{print \$2}'"
+				pkg_version="$($sh_c "$search_command")"
+				echo ">     Suche in Repository nach Version '$VERSION'"
+				if [ -z "$pkg_version" ]; then
+					echo
+					echo ">     FEHLER: '$VERSION' nicht in $pkg_manager Ergebnisliste gefunden."
+					echo
+					exit 1
+				fi
+				search_command="$pkg_manager list --showduplicates 'docker-ce-cli' | grep '$pkg_pattern' | tail -1 | awk '{print \$2}'"
+				# It's okay for cli_pkg_version to be blank, since older versions don't support a cli package
+				cli_pkg_version="$($sh_c "$search_command" | cut -d':' -f 2)"
+				# Cut out the epoch and prefix with a '-'
+				pkg_version="-$(echo "$pkg_version" | cut -d':' -f 2)"
+			fi
+
+			echo ">     Installiere Docker..."
+			(
+				# install the correct cli version first
+				if [ -n "$cli_pkg_version" ]; then
+					$sh_c "$pkg_manager install -y -q docker-ce-cli-$cli_pkg_version"
+				fi
+				$sh_c "$pkg_manager install -y -q docker-ce$pkg_version"
+			)
+			echo_docker_as_nonroot
+			exit 0
+			;;
+		*)
+			if [ -z "$lsb_dist" ]; then
+				if is_darwin; then
+					echo
+					echo ">   FEHLER: Nicht unterstütztes Betriebssystem 'macOS'."
+					echo "    Bitte installieren Sie Docker-Desktop für macOS -> https://www.docker.com/products/docker-desktop"
+					echo
+					exit 1
+				fi
+			fi
+			echo
+			echo ">   FEHLER: Nicht unterstützte Distribution '$lsb_dist'"
+			echo
+			exit 1
+			;;
+	esac
+	exit 1
 }
 
 function remove_all_postgres_containers() {
@@ -422,7 +611,7 @@ function is_user_in_docker_group {
 
 function are_permissions_sufficient {
 	# If docker is not installed user has to be root
-	if ! is_docker_installed ; then
+	if ! command_exists docker ; then
 		if is_user_root; then
 			return 0
 		else
@@ -470,7 +659,7 @@ function entrypoint() {
 	fi
 
 	# Install docker if not already
-	if ! is_docker_installed ; then
+	if ! command_exists docker ; then
 		install_docker
 	fi
 
