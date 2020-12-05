@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.16.0'
+version='v0.17.0'
 
 # Colors
 green='\e[32m'
@@ -158,6 +158,7 @@ start_docker_daemon() {
 
 install_docker() {
 		echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Docker Installation')
 $(dim $separator)
@@ -376,6 +377,7 @@ $(dim $separator)
 
 remove_all_postgres_containers() {
 	echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Alle Postgres-Container löschen')
 $(dim $separator)
@@ -434,6 +436,7 @@ $(dim $separator)
 
 remove_unused_postgres_images() {
 	echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
 $(dim $separator)
@@ -471,6 +474,7 @@ $(dim $separator)
 
 create_postgres_containers() {
 	echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
 $(dim $separator)
@@ -572,12 +576,13 @@ $(dim $separator)
 
 list_postgres_containers() {
 		echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container auflisten')
 $(dim $separator)
 
 "
-	docker ps -a | head -n1
+	docker ps | head -n1
 	docker ps -a | grep 'postgres:*'
 }
 
@@ -587,25 +592,50 @@ postgres_containers_stats() {
 
 postgres_containers_logs() {
 		echo -ne "
+
 $(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Logs')
 $(dim $separator)
 
 "
+	docker ps | head -n1
 	docker container ls | grep 'postgres:*'
 
-	echo -ne "
-Container-ID
-"
-
+	echo
+	echo -ne $(blue 'Container-ID eingeben')
+	echo
 	read -p "> " id
 
 	if [ -z "$id" ]; then
 		exit 1
 	fi
 
-	no_color
-	docker container logs -f "$id"
+	clear
+	docker container logs "$id"
+}
+
+postgres_containers_top() {
+		echo -ne "
+
+$(dim $separator)
+$(dim '# ')$(blue 'Postgres-Container Top')
+$(dim $separator)
+
+"
+	docker ps | head -n1
+	docker container ls | grep 'postgres:*'
+
+	echo
+	echo -ne "$(blue 'Container-ID eingeben')"
+	echo
+	read -p "> " id
+
+	if [ -z "$id" ]; then
+		exit 1
+	fi
+
+	clear
+	watch -n 0 docker container top "$id"
 }
 
 print_header() {
@@ -628,21 +658,23 @@ echo -ne "
 
 $(green '1)') Postgres-Container erstellen & starten
 $(green '2)') Postgres-Container auflisten
-$(green '3)') Postgres-Container Live Statistiken
-$(green '4)') Postgres-Container Logs
-$(green '5)') Alle Postgres-Container entfernen
-$(green '6)') Ungenutzte Postgres-Images entfernen
+$(green '3)') Postgres-Container Statistiken
+$(green '4)') Postgres-Container Log
+$(green '5)') Postgres-Container Top
+$(green '6)') Alle Postgres-Container entfernen
+$(green '7)') Ungenutzte Postgres-Images entfernen
 $(red '0)') Exit
 
 $(blue '>') "
     read a
     case $a in
-		1) create_postgres_containers;;
-		2) list_postgres_containers;;
-		3) postgres_containers_stats;;
-		4) postgres_containers_logs;;
-		5) remove_all_postgres_containers;;
-		6) remove_unused_postgres_images;;
+		1) clear;print_header;create_postgres_containers;;
+		2) clear;print_header;list_postgres_containers;;
+		3) clear;print_header;postgres_containers_stats;;
+		4) clear;print_header;postgres_containers_logs;;
+		5) clear;print_header;postgres_containers_top;;
+		6) clear;print_header;remove_all_postgres_containers;;
+		7) clear;print_header;remove_unused_postgres_images;;
 		0) exit 0;;
 		*) echo -e $red"Warnung: Option existiert nicht."$no_color; menu;;
     esac
