@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.15.4'
+version='v0.16.0'
 
 # Colors
 green='\e[32m'
@@ -139,7 +139,31 @@ check_forked() {
 	fi
 }
 
+is_docker_daemon_running() {
+	if pgrep -f docker > /dev/null; then
+		return 0
+	fi
+	return 1
+}
+
+start_docker_daemon() {
+	if command_exists systemctl; then
+		systemctl is-active --quiet docker.service || systemctl enable --now --quiet docker.service > /dev/null
+	# elif command_exists service; then
+	# 	service docker status > /dev/null || service docker start > /dev/null
+	else
+		pgrep -f docker > /dev/null || dockerd & > /dev/null
+	fi
+}
+
 install_docker() {
+		echo -ne "
+$(dim $separator)
+$(dim '# ')$(blue 'Docker Installation')
+$(dim $separator)
+
+"
+
 	# perform some very rudimentary platform detection
 	echo "> Bereite Docker Installation vor..."
 	echo "> Versuche Platform zu erkennen..."
@@ -219,6 +243,7 @@ install_docker() {
 			fi
 			apt_repo="deb [arch=$(dpkg --print-architecture)] $DOWNLOAD_URL/linux/$lsb_dist $dist_version $CHANNEL"
 			(
+				export APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=0
 				$sh_c 'apt-get update -qq >/dev/null'
 				$sh_c "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $pre_reqs >/dev/null"
 				$sh_c "curl -fsSL \"$DOWNLOAD_URL/linux/$lsb_dist/gpg\" | apt-key add -qq - >/dev/null"
@@ -251,7 +276,6 @@ install_docker() {
 				fi
 				$sh_c "apt-get install -y -qq --no-install-recommends docker-ce$pkg_version >/dev/null"
 			)
-			exit 0
 			;;
 		centos|fedora|rhel)
 			echo ">   $lsb_dist erkannt..."
@@ -315,7 +339,13 @@ install_docker() {
 				$sh_c "$pkg_manager install -y -q docker-ce$pkg_version"
 			)
 			echo_docker_as_nonroot
-			exit 0
+			;;
+		arch|manjaro)
+			echo ">   $lsb_dist erkannt..."
+			echo ">     Installiere Docker..."
+			(
+				pacman -S --needed --noconfirm --quiet docker > /dev/null
+			)
 			;;
 		*)
 			if [ -z "$lsb_dist" ]; then
@@ -333,7 +363,15 @@ install_docker() {
 			exit 1
 			;;
 	esac
-	exit 1
+
+	# Verify installation
+	if ! command_exists docker; then
+		echo "> Docker konnte nicht installiert werden..."
+		exit 1
+	fi
+
+	echo "> Docker wurde erfolgreich installiert..."
+	exit 0
 }
 
 remove_all_postgres_containers() {
@@ -631,17 +669,32 @@ are_permissions_sufficient() {
 	if ! command_exists docker ; then
 		if is_user_root; then
 			return 0
-		else
-			echo -ne "
+		fi
+		echo -ne "
 $(dim $separator)
 $(dim '# ')$(blue 'Docker Installation')
 $(dim $separator)
 
 Docker ist enweder nicht installiert oder die Installation konnte nicht gefunden werden. Bitte starten
-Sie den Skript als 'root' Benutzer, um die automatische Installation und Einrichtung von Docker zu starten.
+Sie den Skript als 'root' Benutzer neu, um die automatische Installation und Einrichtung von Docker zu starten.
 "
-			return 1
+		return 1
+	fi
+
+	# If docker service is not running, need root to start and enable service
+	if ! is_docker_daemon_running; then
+		if is_user_root; then
+			return 0
 		fi
+		echo -ne "
+$(dim $separator)
+$(dim '# ')$(blue 'Docker Installation')
+$(dim $separator)
+
+Docker-Daemon scheint nicht aktiviert zu sein. Bitte starten Sie den Skript als 'root' Benutzer neu, um die
+automatische Aktivierung des Docker-Daemons zu starten.
+"
+	return 1
 	fi
 
 	# If docker is installed user has to be in docker group
@@ -676,8 +729,13 @@ entrypoint() {
 	fi
 
 	# Install docker if not already
-	if ! command_exists docker ; then
+	if ! command_exists docker; then
 		install_docker
+	fi
+
+	# Start docker daemon if not already running
+	if ! is_docker_daemon_running; then
+		start_docker_daemon
 	fi
 
 	# Start options menu only when dependencies are statisfied
