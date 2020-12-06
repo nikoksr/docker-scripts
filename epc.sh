@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.17.0'
+version='v0.18.0'
 
 # Colors
 green='\e[32m'
@@ -610,8 +610,18 @@ $(dim $separator)
 		exit 1
 	fi
 
+	echo
+	read -p "> Live verfolgen (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
 	clear
-	docker container logs "$id"
+	case $choice in
+		"j"|"J"|"y"|"Y") docker container logs -f "$id";;
+		*) docker container logs "$id";;
+    esac
 }
 
 postgres_containers_top() {
