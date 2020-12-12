@@ -10,7 +10,7 @@ set -e
 ##
 
 # Version
-version='v0.18.0'
+version='v0.19.0'
 
 # Colors
 green='\e[32m'
@@ -619,7 +619,7 @@ $(dim $separator)
 
 	clear
 	case $choice in
-		"j"|"J"|"y"|"Y") docker container logs -f "$id";;
+		"j"|"J"|"y"|"Y") docker container logs --since 0s -f "$id";;
 		*) docker container logs "$id";;
     esac
 }
