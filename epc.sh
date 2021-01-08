@@ -9,7 +9,7 @@ set -e
 ##
 
 # Version
-version='v0.20.0'
+version='v0.21.0'
 
 # Colors
 green='\e[32m'
