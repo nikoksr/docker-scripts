@@ -47,11 +47,13 @@ Zum Downloaden des Skripts wird entweder das Programm `curl` oder `wget` benöti
 
 ### Download
 
-    curl -o epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh
+> Sollten die gekürzten URLs nicht funktionieren, können Sie auch die originale URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
+
+    curl -sfL -o epc.sh https://git.io/JLpzr
 
 oder
 
-    wget https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh
+    wget -O epc.sh https://git.io/JLpzr
 
 ### Ausführen
 
