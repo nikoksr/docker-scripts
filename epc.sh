@@ -13,7 +13,7 @@ version='v0.21.0'
 
 # Colors
 green='\e[32m'
-blue='\e[34m'
+blue='\e[96m'
 red='\e[31m'
 dim='\e[2m'
 undim='\e[22m'
@@ -621,6 +621,7 @@ $(blue "### Konfiguration")
 
 		echo -e "> Container gestartet auf $(green $ip:$port)..."
     	done
+		echo
 }
 
 list_postgres_containers() {
