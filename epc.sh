@@ -473,12 +473,19 @@ $(dim $separator)
 
 create_postgres_containers() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
 $(dim $separator)
+$(dim "
+
+Tipp: Drücken Sie 'Enter', um einen in Klammern stehenden
+      Standardwert zu verwenden.")
+
+
+$(blue "### Konfiguration")
 
 "
+
+
 
 	# Get currently highest port in use
 	highest_port="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep 'postgres:*' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
@@ -491,63 +498,106 @@ $(dim $separator)
 	fi
 
 	# Anzahl, Port and Postgres Version
-	read -p "> Anzahl Container (1):                     " container_count
-	read -p "> Start Port ($highest_port):                        " external_port
-	read -p "> Postgres Version (latest):                " postgres_version
-
+	echo -ne "> Anzahl Container $(dim '(1)'):                          "
+	read container_count
 	if [ -z "$container_count" ]; then
     	container_count=1
 	fi
 
+	echo -ne "> Port $(dim '('$highest_port')'):                                   "
+	read external_port
 	if [ -z "$external_port" ]; then
     	external_port=$highest_port
 	fi
 
+	echo -ne "> Postgres Version $(dim '(latest)'):                     "
+	read postgres_version
 	if [ -z "$postgres_version" ]; then
     	postgres_version="latest"
+	fi
+
+	# Logging behaviour
+	echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
+	read max_log_file
+	if [ -z "$max_log_file" ]; then
+		max_log_file="5"
+	fi
+
+	echo -ne "> Maximale Größer einer Log-Datei $(dim '(20m)'):         "
+	read max_log_file_size
+	if [ -z "$max_log_file_size" ]; then
+		max_log_file_size="20m"
 	fi
 
 	# Restart policy
 	restart="always"
 	echo
 	echo -ne "> Neustart Verhalten:
-   $(green '1)') Immer (Standard)
-   $(green '2)') Nur bei Absturz/Fehler
-   $(green '3)') Immer, außer wenn explizit gestoppt
-   $(green '4)') Nie
+   $(blue '1)') Immer $(dim '(Standard)')
+   $(blue '2)') Nur bei Absturz/Fehler
+   $(blue '3)') Immer, außer wenn explizit gestoppt
+   $(blue '4)') Nie
 
    $(blue '>') "
-	read a
-    case $a in
+	read choice
+    case "$choice" in
 		2) restart="on-failure";;
 		3) restart="unless-stopped";;
 		4) restart="no";;
-		*);;
+		*) ;;
     esac
-
-	# Database name
 	echo
-	read -p "> Datenbank Name (leer=keine DB):           " db_name
 
 	# Postgres user password
-	read -s -p "> Postgres Passwort (leer=postgres):     " admin_pwd
+	echo -ne "> Postgres Admin Passwort $(dim '(postgres)'):            "
+	read -s admin_pwd
+	echo
 	if [ -z "$admin_pwd" ]; then
 		admin_pwd="postgres"
+	else
+		echo -ne "> Passwort bestätigen:                           "
+		read -s admin_pwd_confirm
+		echo
+		if [ ! "$admin_pwd" = "$admin_pwd_confirm" ]; then
+			echo
+			echo -e "> $(red 'FEHLER'): Eingegebene Passwörter unterscheiden sich"
+			echo
+			exit 1
+		fi
+	fi
+
+	# Database name
+	echo -ne "> Datenbank Name $(dim '(postgres)'):                     "
+	read db_name
+	if [ -z "$db_name" ]; then
+		db_name="postgres"
 	fi
 
 	echo
-	echo
+
+	echo -ne "$(blue "### Postgres Image laden")\n\n"
+	docker pull postgres:"$postgres_version"
 
 	# Create multiple containers
+	echo -ne "\n$(blue "### Container starten")\n\n"
+
 	ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
 	end_port=$((external_port + container_count - 1))
 
 	for port in `seq $external_port $end_port`; do
 		local name="postgres_$RANDOM"
-		docker run --name $name --publish $port:5432 --restart=$restart -e POSTGRES_PASSWORD=$admin_pwd -d postgres:$postgres_version
+		docker run \
+			--name "$name" \
+			--log-opt max-file="$max_log_file" \
+			--log-opt max-size="$max_log_file_size" \
+			--publish "$port":5432 \
+			--restart="$restart" \
+			-e POSTGRES_PASSWORD="$admin_pwd" \
+			-d \
+			postgres:"$postgres_version" > /dev/null
 
 		# Only create database if name was given. Skip on empty.
-		if ! [ -z "$db_name" ]; then
+		if [ ! -z "$db_name" ] && [ ! "$db_name" = "postgres" ] ; then
 
 			# Wait 90 seconds for container to start
 			is_running=1
@@ -562,14 +612,14 @@ $(dim $separator)
 
 			# Check if container is running and create database if so.
 			if [ "$is_running" -eq 0 ]; then
-				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;"
+				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;" && \
+				echo "> Datenbank $db_name erfolgreich erstellt..."
 			else
 				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
 			fi
 		fi
 
-		echo "> Postgres-Container gestartet auf $ip:$port..."
-		echo
+		echo -e "> Container gestartet auf $(green $ip:$port)..."
     	done
 }
 
