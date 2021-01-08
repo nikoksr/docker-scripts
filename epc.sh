@@ -492,9 +492,9 @@ $(dim $separator)
 	fi
 
 	# Anzahl, Port and Postgres Version
-	read -p "> Anzahl Container (1):              " container_count
-	read -p "> Start Port ($highest_port):                 " external_port
-	read -p "> Postgres Version (latest):         " postgres_version
+	read -p "> Anzahl Container (1):                     " container_count
+	read -p "> Start Port ($highest_port):                        " external_port
+	read -p "> Postgres Version (latest):                " postgres_version
 
 	if [ -z "$container_count" ]; then
     	container_count=1
@@ -516,6 +516,7 @@ $(dim $separator)
    $(green '2)') Nur bei Absturz/Fehler
    $(green '3)') Immer, außer wenn explizit gestoppt
    $(green '4)') Nie
+
    $(blue '>') "
 	read a
     case $a in
@@ -527,13 +528,12 @@ $(dim $separator)
 
 	# Database name
 	echo
-	read -p "> Datenbank Name (leer=keine DB):    " db_name
+	read -p "> Datenbank Name (leer=keine DB):           " db_name
 
 	# Postgres user password
-	read -s -p "> Postgres Passwort:              " admin_pwd
+	read -s -p "> Postgres Passwort (leer=postgres):     " admin_pwd
 	if [ -z "$admin_pwd" ]; then
-		echo "> $(red 'Fehler:') Postgres Passwort darf nicht leer sein."
-		exit 1
+		admin_pwd="postgres"
 	fi
 
 	echo
