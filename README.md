@@ -33,15 +33,15 @@ das Programm `sudo` vorzugsweise zu verwenden.
 
 Zum Downloaden des Skripts wird entweder das Programm `curl` oder `wget` benötigt.
 
-#### Ubuntu & Debian
+##### Ubuntu & Debian
 
     apt-get install curl
 
-#### RHEL / CentOS / Fedora
+##### RHEL / CentOS / Fedora
 
     yum install curl
 
-#### Arch
+##### Arch
 
     pacman -S curl
 
