@@ -9,7 +9,7 @@ set -e
 ##
 
 # Version
-version='v0.21.0'
+version='v0.21.1'
 
 # Colors
 green='\e[32m'
@@ -527,6 +527,13 @@ $(blue "### Konfiguration")
 	read max_log_file_size
 	if [ -z "$max_log_file_size" ]; then
 		max_log_file_size="20m"
+	fi
+
+	if [ "$max_log_file_size" != "*k" ] && [ "$max_log_file_size" != "*m" ] && [ "$max_log_file_size" != "*g" ]; then
+		max_log_file_size="${max_log_file_size}m"
+		echo
+		echo "> INFO: Keine Größenangabe gefunden -> falle zurück auf Standardgröße 'm' (MegaByte)."
+		echo "        Korrigierte maximale Log-Datei Größe: $max_log_file_size"
 	fi
 
 	# Restart policy
