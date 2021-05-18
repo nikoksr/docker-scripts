@@ -9,7 +9,7 @@ set -e
 ##
 
 # Version
-version='v0.21.2'
+version='v0.21.3'
 
 # Colors
 green='\e[32m'
@@ -523,17 +523,23 @@ $(blue "### Konfiguration")
 		max_log_file="5"
 	fi
 
-	echo -ne "> Maximale Größer einer Log-Datei $(dim '(20m)'):         "
+	default_log_file_size="20m"
+	echo -ne "> Maximale Größer einer Log-Datei $(dim '('$default_log_file_size')'):         "
 	read max_log_file_size
 	if [ -z "$max_log_file_size" ]; then
-		max_log_file_size="20m"
+		max_log_file_size="$default_log_file_size"
 	fi
 
-	if [[ "$max_log_file_size" =~ ^.[^kmb]$ ]]; then
-		max_log_file_size="${max_log_file_size}m"
+	if [[ ! "$max_log_file_size" =~ ^[0-9]+[kmg]{0,1}$ ]]; then
+		max_log_file_size="$default_log_file_size"
 		echo
-		echo "> INFO: Keine Größenangabe gefunden -> falle zurück auf Standardgröße 'm' (MegaByte)."
-		echo "        Korrigierte maximale Log-Datei Größe: $max_log_file_size"
+		echo "> WARNUNG: Fehlerhafte Größenangabe gefunden"
+		echo "             -> Falle zurück auf Standardwert"
+		echo -ne "             -> Korrigierte maximale Log-Datei Größe: $(dim $max_log_file_size)"
+		echo
+		echo
+		echo -ne "           Erlaubte Größenangaben: k $(dim '(Kilobyte)'), m $(dim '(Megabyte)'), g $(dim '(Gigabyte)')"
+		echo
 	fi
 
 	# Restart policy
