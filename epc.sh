@@ -9,7 +9,7 @@ set -e
 ##
 
 # Version
-version='v0.21.3'
+version='v0.22.0'
 
 # Colors
 green='\e[32m'
@@ -485,23 +485,41 @@ $(blue "### Konfiguration")
 
 "
 
-
-
-	# Get currently highest port in use
-	highest_port="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep 'postgres:*' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
-
-	# If no port assigned yet or port lower than 1024 default to postgres default port - 5432. Else, increment port by one.
-	if [[ "$highest_port" -eq 0 ]] || [[ "$highest_port" -le 1024 ]]; then
-		highest_port=5432
-	else
-		highest_port=$(($highest_port + 1))
-	fi
-
 	# Anzahl, Port and Postgres Version
 	echo -ne "> Anzahl Container $(dim '(1)'):                          "
 	read container_count
 	if [ -z "$container_count" ]; then
     	container_count=1
+	fi
+
+	# Get currently highest port in use
+	ports_list="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
+
+	# Avoid globbing (expansion of *).
+	set -f
+
+	# Turn ports string into array
+	ports_list=(${ports_list//\n/ })
+
+	local highest_port=0
+
+	for idx in "${!ports_list[@]}"; do
+		# Last port reached; set port equal to last port + 1
+		if [ -z ${ports_list[$(( idx + 1))]} ]; then
+			highest_port=$(( ${ports_list[idx]} + 1 ))
+			break
+		fi
+
+		# Check if all containers fit in port range
+		if [[ ( $(( ${ports_list[idx]} + $container_count + 1 )) < ${ports_list[$(( idx + 1))]} ) ]]; then
+			highest_port=$(( ${ports_list[idx]} + 1 ))
+			break
+		fi
+	done
+
+	# If no port assigned default to postgres default port
+	if [[ "$highest_port" -eq 0 ]]; then
+		highest_port=5432
 	fi
 
 	echo -ne "> Port $(dim '('$highest_port')'):                                   "
