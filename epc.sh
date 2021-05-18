@@ -20,7 +20,7 @@ undim='\e[22m'
 no_color='\e[0m'
 
 # Bar
-separator='##############################################################'
+separator='######################################################################'
 
 # The channel to install from:
 #   * nightly
@@ -711,8 +711,10 @@ $(dim $separator)
 $(dim '#')
 $(dim '#') $(blue 'Easy-Postgres-Containers '$version'')
 $(dim '#')
-$(dim '#') $(dim 'Webseite:') $(blue 'https://github.com/nikoksr/docker-scripts')
-$(dim '#') $(dim 'Lizenz:')   $(blue 'https://github.com/nikoksr/docker-scripts/LICENSE')
+$(dim '#') $(dim 'Author:') $(blue 'Niko Köser')
+$(dim '#') $(dim 'Email:')  $(blue 'contact@nikoksr.dev')
+$(dim '#') $(dim 'Lizenz:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/LICENSE')
+$(dim '#') $(dim 'Source:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/epc.sh')
 $(dim '#')
 $(dim $separator)"
 }
