@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
+
 set -e
 
 # Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
 # Download link of original docker script: https://get.docker.com
 
-##
-# Variables
-##
-
-# Version
 version='v0.22.0'
 
-# Colors
+# Colors codes
 green='\e[32m'
 blue='\e[96m'
 red='\e[31m'
@@ -19,7 +15,6 @@ dim='\e[2m'
 undim='\e[22m'
 no_color='\e[0m'
 
-# Bar
 separator='######################################################################'
 
 # The channel to install from:
@@ -33,9 +28,7 @@ REPO_FILE="docker-ce.repo"
 
 sh_c='bash -c'
 
-##
-# Color Functions
-##
+# Color functions. Accept string and echo it in the respective color.
 green() {
 	echo "$green$1$no_color"
 }
@@ -52,9 +45,14 @@ dim() {
 	echo "$dim$1$no_color"
 }
 
-##
-# Functions
-##
+
+####
+#
+# DOCKER INSTALLATION
+#
+####
+
+
 is_wsl() {
 	case "$(uname -r)" in
 	*microsoft* ) true ;; # WSL 2
@@ -100,41 +98,45 @@ add_debian_backport_repo() {
 check_forked() {
 
 	# Check for lsb_release command existence, it usually exists in forked distros
-	if command_exists lsb_release; then
-		# Check if the `-u` option is supported
-		set +e
-		lsb_release -a -u > /dev/null 2>&1
-		lsb_release_exit_code=$?
-		set -e
+	if ! command_exists lsb_release; then
+		return
+	fi
 
-		# Check if the command has exited successfully, it means we're in a forked distro
-		if [ "$lsb_release_exit_code" = "0" ]; then
-			# Get the upstream release info
-			lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[:space:]')
-			dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[:space:]')
+	# Check if the `-u` option is supported
+	set +e
+	lsb_release -a -u > /dev/null 2>&1
+	lsb_release_exit_code=$?
+	set -e
+
+	# Check if the command has exited successfully, it means we're in a forked distro
+	if [ "$lsb_release_exit_code" = "0" ]; then
+		# Get the upstream release info
+		lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[:space:]')
+		dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[:space:]')
+
+		return
+	fi
+
+	if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
+		if [ "$lsb_dist" = "osmc" ]; then
+			# OSMC runs Raspbian
+			lsb_dist=raspbian
 		else
-			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
-				if [ "$lsb_dist" = "osmc" ]; then
-					# OSMC runs Raspbian
-					lsb_dist=raspbian
-				else
-					# We're Debian and don't even know it!
-					lsb_dist=debian
-				fi
-				dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
-				case "$dist_version" in
-					10)
-						dist_version="buster"
-					;;
-					9)
-						dist_version="stretch"
-					;;
-					8|'Kali Linux 2')
-						dist_version="jessie"
-					;;
-				esac
-			fi
+			# We're Debian and don't even know it!
+			lsb_dist=debian
 		fi
+		dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
+		case "$dist_version" in
+			10)
+				dist_version="buster"
+			;;
+			9)
+				dist_version="stretch"
+			;;
+			8|'Kali Linux 2')
+				dist_version="jessie"
+			;;
+		esac
 	fi
 }
 
@@ -374,102 +376,13 @@ $(dim $separator)
 	exit 0
 }
 
-remove_all_postgres_containers() {
-	echo -ne "
 
-$(dim $separator)
-$(dim '# ')$(blue 'Alle Postgres-Container löschen')
-$(dim $separator)
+####
+#
+# CONTAINER MANIPULATION
+#
+####
 
-"
-
-	echo -ne " $(red 'WARNUNG')
-
-   Sie sind im Begriff $(red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
-   Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
-
-   Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker ps -a | grep 'postgres:*'')
-
-
-"
-
-	read -p "> Möchten Sie fortfahren (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-    	choice="n"
-	fi
-
-	case $choice in
-		"j"|"J"|"y"|"Y") ;;
-		*) exit 0 ;;
-    esac
-
-	echo -ne "
-
-   Dies ist $(red 'die letzte Warnung!')
-   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
-   $(red 'Datenverlust') ist eine mögliche Folge!
-
-
-"
-
-	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-    	choice="n"
-	fi
-
-	case $choice in
-		"j"|"J"|"y"|"Y") ;;
-		*) exit 0 ;;
-    esac
-
-	echo "> Entferne Container"
-	echo
-
-	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
-}
-
-remove_unused_postgres_images() {
-	echo -ne "
-
-$(dim $separator)
-$(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
-$(dim $separator)
-
-"
-
-	echo -ne " $(red 'WARNUNG')
-
-   Sie sind im Begriff $(red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
-
-   Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker images | grep 'postgres'')
-
-
-"
-
-	read -p "> Möchten Sie fortfahren (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-    	choice="n"
-	fi
-
-	case $choice in
-		"j"|"J"|"y"|"Y") ;;
-		*) exit 0 ;;
-    esac
-
-	echo "> Entferne Images"
-	echo
-
-	docker rmi $(docker images | grep 'postgres')
-}
 
 create_postgres_containers() {
 	echo -ne "
@@ -650,9 +563,106 @@ $(blue "### Konfiguration")
 			fi
 		fi
 
-		echo -e "> Container gestartet auf $(green $ip:$port)..."
+		echo -e "> Container $(dim $name) gestartet auf $(green $ip:$port)"
     	done
 		echo
+}
+
+remove_all_postgres_containers() {
+	echo -ne "
+
+$(dim $separator)
+$(dim '# ')$(blue 'Alle Postgres-Container löschen')
+$(dim $separator)
+
+"
+
+	echo -ne " $(red 'WARNUNG')
+
+   Sie sind im Begriff $(red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
+   Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
+
+   Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
+   und führen Sie folgenden Befehl aus:
+
+   $(blue 'docker ps -a | grep 'postgres:*'')
+
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	echo -ne "
+
+   Dies ist $(red 'die letzte Warnung!')
+   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
+   $(red 'Datenverlust') ist eine mögliche Folge!
+
+
+"
+
+	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	echo "> Entferne Container"
+	echo
+
+	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
+}
+
+remove_unused_postgres_images() {
+	echo -ne "
+
+$(dim $separator)
+$(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
+$(dim $separator)
+
+"
+
+	echo -ne " $(red 'WARNUNG')
+
+   Sie sind im Begriff $(red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
+
+   Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
+   und führen Sie folgenden Befehl aus:
+
+   $(blue 'docker images | grep 'postgres'')
+
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+    	choice="n"
+	fi
+
+	case $choice in
+		"j"|"J"|"y"|"Y") ;;
+		*) exit 0 ;;
+    esac
+
+	echo "> Entferne Images"
+	echo
+
+	docker rmi $(docker images | grep 'postgres')
 }
 
 list_postgres_containers() {
@@ -728,6 +738,12 @@ $(dim $separator)
 	clear
 	watch -n 0 docker container top "$id"
 }
+
+####
+#
+# UI
+#
+####
 
 print_header() {
 	echo -ne "
