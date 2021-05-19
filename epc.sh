@@ -5,7 +5,7 @@ set -e
 # Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
 # Download link of original docker script: https://get.docker.com
 
-version='v0.23.0'
+version='v0.23.0-beta'
 
 # Colors codes
 green='\e[32m'
