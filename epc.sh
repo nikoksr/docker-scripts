@@ -5,7 +5,7 @@ set -e
 # Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
 # Download link of original docker script: https://get.docker.com
 
-version='v0.22.0'
+version='v0.23.0'
 
 # Colors codes
 green='\e[32m'
@@ -376,6 +376,33 @@ $(dim $separator)
 	exit 0
 }
 
+get_timezone() {
+	set -euo pipefail
+
+	# Check if /etc/localtime is a symlink as expected
+	if filename=$(readlink /etc/localtime); then
+    	timezone=${filename#*zoneinfo/}
+    	if [[ $timezone = "$filename" || ! $timezone =~ ^[^/]+/[^/]+$ ]]; then
+	        # not pointing to expected location or not Region/City
+    	    >&2 echo "$filename points to an unexpected location"
+        	return 1
+    	fi
+
+		echo "$timezone"
+		return 0
+	fi
+
+	# Fallback; use ipapi to get timezone
+	timezone=$(curl -s 'https://ipapi.co/timezone' > /dev/null)
+
+	# Fallback to fixed default timezone.
+	if [ -z "$timezone" ]; then
+		timezone="Europe/Berlin"
+	fi
+
+	echo "$timezone"
+	return 0
+}
 
 ####
 #
@@ -441,6 +468,7 @@ $(blue "### Konfiguration")
     	external_port=$highest_port
 	fi
 
+	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
 	read postgres_version
 	if [ -z "$postgres_version" ]; then
@@ -448,6 +476,7 @@ $(blue "### Konfiguration")
 	fi
 
 	# Logging behaviour
+	echo
 	echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
 	read max_log_file
 	if [ -z "$max_log_file" ]; then
@@ -471,6 +500,15 @@ $(blue "### Konfiguration")
 		echo
 		echo -ne "           Erlaubte Größenangaben: k $(dim '(Kilobyte)'), m $(dim '(Megabyte)'), g $(dim '(Gigabyte)')"
 		echo
+	fi
+
+	# Timezone
+	local default_timezone=$(get_timezone)
+	echo
+	echo -ne "> Zeitzone $(dim '('$default_timezone')'):                      "
+	read timezone
+	if [ -z "$timezone" ]; then
+		timezone="$default_timezone"
 	fi
 
 	# Restart policy
@@ -537,6 +575,7 @@ $(blue "### Konfiguration")
 			--publish "$port":5432 \
 			--restart="$restart" \
 			-e POSTGRES_PASSWORD="$admin_pwd" \
+			-e TZ="$timezone" \
 			-d \
 			postgres:"$postgres_version" > /dev/null
 
