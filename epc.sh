@@ -151,8 +151,8 @@ Beende Skript aufgrund von unzureichenden Berechtigungen.
 #
 ####
 
-# This is the url to the official Docker install script (hosted on GitHub) which will be used here to.. install docker.
-INSTALL_SCRIPT_URL="https://raw.githubusercontent.com/docker/docker-install/master/install.sh"
+# This is the url to the official Docker install script which will be used here to.. install docker.
+INSTALL_SCRIPT_URL="https://get.docker.com/"
 
 install_docker() {
 
