@@ -288,7 +288,7 @@ $(blue "### Konfiguration")
 	fi
 
 	default_log_file_size="20m"
-	echo -ne "> Maximale Größer einer Log-Datei $(dim '('$default_log_file_size')'):         "
+	echo -ne "> Maximale Größe einer Log-Datei $(dim '('$default_log_file_size')'):         "
 	read -r max_log_file_size
 	if [ -z "$max_log_file_size" ]; then
 		max_log_file_size="$default_log_file_size"
