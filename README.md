@@ -25,7 +25,7 @@ Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beoba
 
 Sollte der Skript dafür verwendet werden, um Docker zu installieren, werden `root`-Rechte
 benötigt. Sie sollten dazu das Programm `sudo` installiert und ihrem aktuellen Benutzer
-die Rechte gegeben haben, dieses Programm verwenden zu drüfen.
+die Rechte gegeben haben, dieses Programm verwenden zu dürfen.
 
 Sollte das Installieren des `sudo` Programmes aus irgendwelchen Gründen nicht möglich sein,
 können Sie auch auf den Benutzer `root` zurückgreifen. Es wird jedoch deutlich dazu geraten,
@@ -47,17 +47,13 @@ Zum Downloaden des Skripts wird entweder das Programm `curl` oder `wget` benöti
 
 ### Download
 
-> Sollten die gekürzten URLs nicht funktionieren, können Sie auch die originale URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
+> Sollten die gekürzten URLs nicht funktionieren, können Sie auch die vollständige URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
 
     curl -sfL -o epc.sh https://git.io/JLpzr
 
 oder
 
     wget -O epc.sh https://git.io/JLpzr
-
-
-##### Timezone Test-Version
-    curl -sfL -o epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/feat/timezone/epc.sh
 
 ### Ausführen
 
