@@ -55,6 +55,10 @@ oder
 
     wget -O epc.sh https://git.io/JLpzr
 
+
+##### Timezone Test-Version
+    curl -sfL -o epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/feat/timezone/epc.sh
+
 ### Ausführen
 
     bash epc.sh

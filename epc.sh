@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
+
 set -e
 
 # Docker install part of the script is highly inspired by https://docs.docker.com/engine/install/ubuntu/#install-using-the-convenience-script.
 # Download link of original docker script: https://get.docker.com
 
-##
-# Variables
-##
+version='v0.23.0-beta'
 
-# Version
-version='v0.22.0'
-
-# Colors
+# Colors codes
 green='\e[32m'
 blue='\e[96m'
 red='\e[31m'
@@ -19,7 +15,6 @@ dim='\e[2m'
 undim='\e[22m'
 no_color='\e[0m'
 
-# Bar
 separator='######################################################################'
 
 # The channel to install from:
@@ -33,9 +28,7 @@ REPO_FILE="docker-ce.repo"
 
 sh_c='bash -c'
 
-##
-# Color Functions
-##
+# Color functions. Accept string and echo it in the respective color.
 green() {
 	echo "$green$1$no_color"
 }
@@ -52,9 +45,14 @@ dim() {
 	echo "$dim$1$no_color"
 }
 
-##
-# Functions
-##
+
+####
+#
+# DOCKER INSTALLATION
+#
+####
+
+
 is_wsl() {
 	case "$(uname -r)" in
 	*microsoft* ) true ;; # WSL 2
@@ -100,41 +98,45 @@ add_debian_backport_repo() {
 check_forked() {
 
 	# Check for lsb_release command existence, it usually exists in forked distros
-	if command_exists lsb_release; then
-		# Check if the `-u` option is supported
-		set +e
-		lsb_release -a -u > /dev/null 2>&1
-		lsb_release_exit_code=$?
-		set -e
+	if ! command_exists lsb_release; then
+		return
+	fi
 
-		# Check if the command has exited successfully, it means we're in a forked distro
-		if [ "$lsb_release_exit_code" = "0" ]; then
-			# Get the upstream release info
-			lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[:space:]')
-			dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[:space:]')
+	# Check if the `-u` option is supported
+	set +e
+	lsb_release -a -u > /dev/null 2>&1
+	lsb_release_exit_code=$?
+	set -e
+
+	# Check if the command has exited successfully, it means we're in a forked distro
+	if [ "$lsb_release_exit_code" = "0" ]; then
+		# Get the upstream release info
+		lsb_dist=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'id' | cut -d ':' -f 2 | tr -d '[:space:]')
+		dist_version=$(lsb_release -a -u 2>&1 | tr '[:upper:]' '[:lower:]' | grep -E 'codename' | cut -d ':' -f 2 | tr -d '[:space:]')
+
+		return
+	fi
+
+	if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
+		if [ "$lsb_dist" = "osmc" ]; then
+			# OSMC runs Raspbian
+			lsb_dist=raspbian
 		else
-			if [ -r /etc/debian_version ] && [ "$lsb_dist" != "ubuntu" ] && [ "$lsb_dist" != "raspbian" ]; then
-				if [ "$lsb_dist" = "osmc" ]; then
-					# OSMC runs Raspbian
-					lsb_dist=raspbian
-				else
-					# We're Debian and don't even know it!
-					lsb_dist=debian
-				fi
-				dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
-				case "$dist_version" in
-					10)
-						dist_version="buster"
-					;;
-					9)
-						dist_version="stretch"
-					;;
-					8|'Kali Linux 2')
-						dist_version="jessie"
-					;;
-				esac
-			fi
+			# We're Debian and don't even know it!
+			lsb_dist=debian
 		fi
+		dist_version="$(sed 's/\/.*//' /etc/debian_version | sed 's/\..*//')"
+		case "$dist_version" in
+			10)
+				dist_version="buster"
+			;;
+			9)
+				dist_version="stretch"
+			;;
+			8|'Kali Linux 2')
+				dist_version="jessie"
+			;;
+		esac
 	fi
 }
 
@@ -374,6 +376,237 @@ $(dim $separator)
 	exit 0
 }
 
+get_timezone() {
+	set -euo pipefail
+
+	# Check if /etc/localtime is a symlink as expected
+	if filename=$(readlink /etc/localtime); then
+    	timezone=${filename#*zoneinfo/}
+    	if [[ $timezone = "$filename" || ! $timezone =~ ^[^/]+/[^/]+$ ]]; then
+	        # not pointing to expected location or not Region/City
+    	    >&2 echo "$filename points to an unexpected location"
+        	return 1
+    	fi
+
+		echo "$timezone"
+		return 0
+	fi
+
+	# Fallback; use ipapi to get timezone
+	timezone=$(curl -s 'https://ipapi.co/timezone' > /dev/null)
+
+	# Fallback to fixed default timezone.
+	if [ -z "$timezone" ]; then
+		timezone="Europe/Berlin"
+	fi
+
+	echo "$timezone"
+	return 0
+}
+
+####
+#
+# CONTAINER MANIPULATION
+#
+####
+
+
+create_postgres_containers() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container erstellen & starten')
+$(dim $separator)
+$(dim "
+
+Tipp: Drücken Sie 'Enter', um einen in Klammern stehenden
+      Standardwert zu verwenden.")
+
+
+$(blue "### Konfiguration")
+
+"
+
+	# Anzahl, Port and Postgres Version
+	echo -ne "> Anzahl Container $(dim '(1)'):                          "
+	read container_count
+	if [ -z "$container_count" ]; then
+    	container_count=1
+	fi
+
+	# Get currently highest port in use
+	ports_list="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
+
+	# Avoid globbing (expansion of *).
+	set -f
+
+	# Turn ports string into array
+	ports_list=(${ports_list//\n/ })
+
+	local highest_port=0
+
+	for idx in "${!ports_list[@]}"; do
+		# Last port reached; set port equal to last port + 1
+		if [ -z ${ports_list[$(( idx + 1))]} ]; then
+			highest_port=$(( ${ports_list[idx]} + 1 ))
+			break
+		fi
+
+		# Check if all containers fit in port range
+		if [[ ( $(( ${ports_list[idx]} + $container_count + 1 )) < ${ports_list[$(( idx + 1))]} ) ]]; then
+			highest_port=$(( ${ports_list[idx]} + 1 ))
+			break
+		fi
+	done
+
+	# If no port assigned default to postgres default port
+	if [[ "$highest_port" -eq 0 ]]; then
+		highest_port=5432
+	fi
+
+	echo -ne "> Port $(dim '('$highest_port')'):                                   "
+	read external_port
+	if [ -z "$external_port" ]; then
+    	external_port=$highest_port
+	fi
+
+	echo
+	echo -ne "> Postgres Version $(dim '(latest)'):                     "
+	read postgres_version
+	if [ -z "$postgres_version" ]; then
+    	postgres_version="latest"
+	fi
+
+	# Logging behaviour
+	echo
+	echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
+	read max_log_file
+	if [ -z "$max_log_file" ]; then
+		max_log_file="5"
+	fi
+
+	default_log_file_size="20m"
+	echo -ne "> Maximale Größer einer Log-Datei $(dim '('$default_log_file_size')'):         "
+	read max_log_file_size
+	if [ -z "$max_log_file_size" ]; then
+		max_log_file_size="$default_log_file_size"
+	fi
+
+	if [[ ! "$max_log_file_size" =~ ^[0-9]+[kmg]{0,1}$ ]]; then
+		max_log_file_size="$default_log_file_size"
+		echo
+		echo "> WARNUNG: Fehlerhafte Größenangabe gefunden"
+		echo "             -> Falle zurück auf Standardwert"
+		echo -ne "             -> Korrigierte maximale Log-Datei Größe: $(dim $max_log_file_size)"
+		echo
+		echo
+		echo -ne "           Erlaubte Größenangaben: k $(dim '(Kilobyte)'), m $(dim '(Megabyte)'), g $(dim '(Gigabyte)')"
+		echo
+	fi
+
+	# Timezone
+	local default_timezone=$(get_timezone)
+	echo
+	echo -ne "> Zeitzone $(dim '('$default_timezone')'):                      "
+	read timezone
+	if [ -z "$timezone" ]; then
+		timezone="$default_timezone"
+	fi
+
+	# Restart policy
+	restart="always"
+	echo
+	echo -ne "> Neustart Verhalten:
+   $(blue '1)') Immer $(dim '(Standard)')
+   $(blue '2)') Nur bei Absturz/Fehler
+   $(blue '3)') Immer, außer wenn explizit gestoppt
+   $(blue '4)') Nie
+
+   $(blue '>') "
+	read choice
+    case "$choice" in
+		2) restart="on-failure";;
+		3) restart="unless-stopped";;
+		4) restart="no";;
+		*) ;;
+    esac
+	echo
+
+	# Postgres user password
+	echo -ne "> Postgres Admin Passwort $(dim '(postgres)'):            "
+	read -s admin_pwd
+	echo
+	if [ -z "$admin_pwd" ]; then
+		admin_pwd="postgres"
+	else
+		echo -ne "> Passwort bestätigen:                           "
+		read -s admin_pwd_confirm
+		echo
+		if [ ! "$admin_pwd" = "$admin_pwd_confirm" ]; then
+			echo
+			echo -e "> $(red 'FEHLER'): Eingegebene Passwörter unterscheiden sich"
+			echo
+			exit 1
+		fi
+	fi
+
+	# Database name
+	echo -ne "> Datenbank Name $(dim '(postgres)'):                     "
+	read db_name
+	if [ -z "$db_name" ]; then
+		db_name="postgres"
+	fi
+
+	echo
+
+	echo -ne "$(blue "### Postgres Image laden")\n\n"
+	docker pull postgres:"$postgres_version"
+
+	# Create multiple containers
+	echo -ne "\n$(blue "### Container starten")\n\n"
+
+	ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
+	end_port=$((external_port + container_count - 1))
+
+	for port in `seq $external_port $end_port`; do
+		local name="postgres_$RANDOM"
+		docker run \
+			--name "$name" \
+			--log-opt max-file="$max_log_file" \
+			--log-opt max-size="$max_log_file_size" \
+			--publish "$port":5432 \
+			--restart="$restart" \
+			-e POSTGRES_PASSWORD="$admin_pwd" \
+			-e TZ="$timezone" \
+			-d \
+			postgres:"$postgres_version" > /dev/null
+
+		# Only create database if name was given. Skip on empty.
+		if [ ! -z "$db_name" ] && [ ! "$db_name" = "postgres" ] ; then
+
+			# Wait 90 seconds for container to start
+			is_running=1
+			while [[ $i -lt 90 ]]; do
+				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
+					is_running=0
+					break
+				fi
+				sleep 1s
+				i=$[$i+1]
+			done
+
+			# Check if container is running and create database if so.
+			if [ "$is_running" -eq 0 ]; then
+				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;" && \
+				echo "> Datenbank $db_name erfolgreich erstellt..."
+			else
+				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
+			fi
+		fi
+
+		echo -e "> Container $(dim $name) gestartet auf $(green $ip:$port)"
+    	done
+		echo
+}
+
 remove_all_postgres_containers() {
 	echo -ne "
 
@@ -471,190 +704,6 @@ $(dim $separator)
 	docker rmi $(docker images | grep 'postgres')
 }
 
-create_postgres_containers() {
-	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container erstellen & starten')
-$(dim $separator)
-$(dim "
-
-Tipp: Drücken Sie 'Enter', um einen in Klammern stehenden
-      Standardwert zu verwenden.")
-
-
-$(blue "### Konfiguration")
-
-"
-
-	# Anzahl, Port and Postgres Version
-	echo -ne "> Anzahl Container $(dim '(1)'):                          "
-	read container_count
-	if [ -z "$container_count" ]; then
-    	container_count=1
-	fi
-
-	# Get currently highest port in use
-	ports_list="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
-
-	# Avoid globbing (expansion of *).
-	set -f
-
-	# Turn ports string into array
-	ports_list=(${ports_list//\n/ })
-
-	local highest_port=0
-
-	for idx in "${!ports_list[@]}"; do
-		# Last port reached; set port equal to last port + 1
-		if [ -z ${ports_list[$(( idx + 1))]} ]; then
-			highest_port=$(( ${ports_list[idx]} + 1 ))
-			break
-		fi
-
-		# Check if all containers fit in port range
-		if [[ ( $(( ${ports_list[idx]} + $container_count + 1 )) < ${ports_list[$(( idx + 1))]} ) ]]; then
-			highest_port=$(( ${ports_list[idx]} + 1 ))
-			break
-		fi
-	done
-
-	# If no port assigned default to postgres default port
-	if [[ "$highest_port" -eq 0 ]]; then
-		highest_port=5432
-	fi
-
-	echo -ne "> Port $(dim '('$highest_port')'):                                   "
-	read external_port
-	if [ -z "$external_port" ]; then
-    	external_port=$highest_port
-	fi
-
-	echo -ne "> Postgres Version $(dim '(latest)'):                     "
-	read postgres_version
-	if [ -z "$postgres_version" ]; then
-    	postgres_version="latest"
-	fi
-
-	# Logging behaviour
-	echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
-	read max_log_file
-	if [ -z "$max_log_file" ]; then
-		max_log_file="5"
-	fi
-
-	default_log_file_size="20m"
-	echo -ne "> Maximale Größer einer Log-Datei $(dim '('$default_log_file_size')'):         "
-	read max_log_file_size
-	if [ -z "$max_log_file_size" ]; then
-		max_log_file_size="$default_log_file_size"
-	fi
-
-	if [[ ! "$max_log_file_size" =~ ^[0-9]+[kmg]{0,1}$ ]]; then
-		max_log_file_size="$default_log_file_size"
-		echo
-		echo "> WARNUNG: Fehlerhafte Größenangabe gefunden"
-		echo "             -> Falle zurück auf Standardwert"
-		echo -ne "             -> Korrigierte maximale Log-Datei Größe: $(dim $max_log_file_size)"
-		echo
-		echo
-		echo -ne "           Erlaubte Größenangaben: k $(dim '(Kilobyte)'), m $(dim '(Megabyte)'), g $(dim '(Gigabyte)')"
-		echo
-	fi
-
-	# Restart policy
-	restart="always"
-	echo
-	echo -ne "> Neustart Verhalten:
-   $(blue '1)') Immer $(dim '(Standard)')
-   $(blue '2)') Nur bei Absturz/Fehler
-   $(blue '3)') Immer, außer wenn explizit gestoppt
-   $(blue '4)') Nie
-
-   $(blue '>') "
-	read choice
-    case "$choice" in
-		2) restart="on-failure";;
-		3) restart="unless-stopped";;
-		4) restart="no";;
-		*) ;;
-    esac
-	echo
-
-	# Postgres user password
-	echo -ne "> Postgres Admin Passwort $(dim '(postgres)'):            "
-	read -s admin_pwd
-	echo
-	if [ -z "$admin_pwd" ]; then
-		admin_pwd="postgres"
-	else
-		echo -ne "> Passwort bestätigen:                           "
-		read -s admin_pwd_confirm
-		echo
-		if [ ! "$admin_pwd" = "$admin_pwd_confirm" ]; then
-			echo
-			echo -e "> $(red 'FEHLER'): Eingegebene Passwörter unterscheiden sich"
-			echo
-			exit 1
-		fi
-	fi
-
-	# Database name
-	echo -ne "> Datenbank Name $(dim '(postgres)'):                     "
-	read db_name
-	if [ -z "$db_name" ]; then
-		db_name="postgres"
-	fi
-
-	echo
-
-	echo -ne "$(blue "### Postgres Image laden")\n\n"
-	docker pull postgres:"$postgres_version"
-
-	# Create multiple containers
-	echo -ne "\n$(blue "### Container starten")\n\n"
-
-	ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
-	end_port=$((external_port + container_count - 1))
-
-	for port in `seq $external_port $end_port`; do
-		local name="postgres_$RANDOM"
-		docker run \
-			--name "$name" \
-			--log-opt max-file="$max_log_file" \
-			--log-opt max-size="$max_log_file_size" \
-			--publish "$port":5432 \
-			--restart="$restart" \
-			-e POSTGRES_PASSWORD="$admin_pwd" \
-			-d \
-			postgres:"$postgres_version" > /dev/null
-
-		# Only create database if name was given. Skip on empty.
-		if [ ! -z "$db_name" ] && [ ! "$db_name" = "postgres" ] ; then
-
-			# Wait 90 seconds for container to start
-			is_running=1
-			while [[ $i -lt 90 ]]; do
-				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
-					is_running=0
-					break
-				fi
-				sleep 1s
-				i=$[$i+1]
-			done
-
-			# Check if container is running and create database if so.
-			if [ "$is_running" -eq 0 ]; then
-				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;" && \
-				echo "> Datenbank $db_name erfolgreich erstellt..."
-			else
-				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
-			fi
-		fi
-
-		echo -e "> Container gestartet auf $(green $ip:$port)..."
-    	done
-		echo
-}
-
 list_postgres_containers() {
 		echo -ne "
 
@@ -728,6 +777,12 @@ $(dim $separator)
 	clear
 	watch -n 0 docker container top "$id"
 }
+
+####
+#
+# UI
+#
+####
 
 print_header() {
 	echo -ne "
