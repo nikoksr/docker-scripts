@@ -25,7 +25,7 @@ Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beoba
 
 Sollte der Skript dafür verwendet werden, um Docker zu installieren, werden `root`-Rechte
 benötigt. Sie sollten dazu das Programm `sudo` installiert und ihrem aktuellen Benutzer
-die Rechte gegeben haben, dieses Programm verwenden zu drüfen.
+die Rechte gegeben haben, dieses Programm verwenden zu dürfen.
 
 Sollte das Installieren des `sudo` Programmes aus irgendwelchen Gründen nicht möglich sein,
 können Sie auch auf den Benutzer `root` zurückgreifen. Es wird jedoch deutlich dazu geraten,
