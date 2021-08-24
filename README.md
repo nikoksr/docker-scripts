@@ -47,17 +47,13 @@ Zum Downloaden des Skripts wird entweder das Programm `curl` oder `wget` benöti
 
 ### Download
 
-> Sollten die gekürzten URLs nicht funktionieren, können Sie auch die originale URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
+> Sollten die gekürzten URLs nicht funktionieren, können Sie auch die vollständige URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
 
     curl -sfL -o epc.sh https://git.io/JLpzr
 
 oder
 
     wget -O epc.sh https://git.io/JLpzr
-
-
-##### Timezone Test-Version
-    curl -sfL -o epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/feat/timezone/epc.sh
 
 ### Ausführen
 
