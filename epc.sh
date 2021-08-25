@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.24.2-alpha'
+version='v0.24.2-beta'
 
 # Visual separation bar
 separator='######################################################################'
@@ -415,8 +415,6 @@ $(blue "### Konfiguration")
 
 remove_all_postgres_containers() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Alle Postgres-Container löschen')
 $(dim $separator)
 
@@ -474,8 +472,6 @@ $(dim $separator)
 
 remove_unused_postgres_images() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
 $(dim $separator)
 
@@ -512,28 +508,34 @@ $(dim $separator)
 
 list_postgres_containers() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container auflisten')
 $(dim $separator)
 
 "
+
 	docker ps | head -n1
 	docker ps -a | grep 'postgres:*'
 }
 
 postgres_containers_stats() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Statistiken')
+$(dim $separator)
+
+$(dim "Hinweis: Das Laden der Statistiken kann einige Sekunden dauern.")
+
+"
+
 	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
 }
 
 postgres_containers_logs() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Logs')
 $(dim $separator)
 
 "
+
 	docker ps | head -n1
 	docker container ls | grep 'postgres:*'
 
@@ -562,12 +564,11 @@ $(dim $separator)
 
 postgres_containers_top() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Top')
 $(dim $separator)
 
 "
+
 	docker ps | head -n1
 	docker container ls | grep 'postgres:*'
 
@@ -653,7 +654,7 @@ $(blue '>') "
 	$chosen_function
 }
 
-# entrypoint for the application.
+# Entrypoint for the application.
 entrypoint() {
 	# Cancel on ctrl+c
 	trap "exit" INT
