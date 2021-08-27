@@ -155,9 +155,7 @@ Beende Skript aufgrund von unzureichenden Berechtigungen.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
 
 install_docker() {
-
 	echo -ne "
-$(dim $separator)
 $(dim '# ')$(blue 'Docker Installation')
 $(dim $separator)
 
@@ -415,22 +413,28 @@ $(blue "### Konfiguration")
 
 remove_all_postgres_containers() {
 	echo -ne "
+$(dim '# ')$(blue 'Gestoppte Container entfernen')
+$(dim $separator)
 
-$(dim $separator)
-$(dim '# ')$(blue 'Alle Postgres-Container löschen')
-$(dim $separator)
+"
+
+	echo -ne "
+$(red 'Liste gestoppter Container')
+===============================================================
+
+"
+
+	docker container ls -a -f "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+
+	echo -ne "
+===============================================================
+
 
 "
 
 	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
-   Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
-
-   Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker ps -a | grep 'postgres:*'')
+   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Container endgültig zu entfernen!
 
 
 "
@@ -449,8 +453,8 @@ $(dim $separator)
 	echo -ne "
 
    Dies ist $(red 'die letzte Warnung!')
-   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
-   $(red 'Datenverlust') ist eine mögliche Folge!
+   Es werden ALLE(!) gestoppten Container gelöscht! Dieser Schritt kann nicht
+   rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
 
 
 "
@@ -472,23 +476,17 @@ $(dim $separator)
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
-remove_unused_postgres_images() {
+remove_dangling_images() {
 	echo -ne "
+$(dim '# ')$(blue 'Unreferenzierte Images entfernen')
+$(dim $separator)
 
-$(dim $separator)
-$(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
-$(dim $separator)
 
 "
 
-	echo -ne " $(red 'WARNUNG')
+	echo -ne "$(red 'WARNUNG')
 
-   Sie sind im Begriff $(red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
-
-   Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker images | grep '"'single quotes'"'')
+ Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Docker-Images zu entfernen!
 
 
 "
@@ -507,13 +505,11 @@ $(dim $separator)
 	echo "> Entferne Images"
 	echo
 
-	docker rmi "$(docker images | grep 'postgres')"
+	docker image prune -f
 }
 
 list_postgres_containers() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container auflisten')
 $(dim $separator)
 
@@ -528,8 +524,6 @@ postgres_containers_stats() {
 
 postgres_containers_logs() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Logs')
 $(dim $separator)
 
@@ -562,8 +556,6 @@ $(dim $separator)
 
 postgres_containers_top() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Top')
 $(dim $separator)
 
@@ -624,8 +616,8 @@ $(green '2)') Postgres-Container auflisten
 $(green '3)') Postgres-Container Statistiken
 $(green '4)') Postgres-Container Log
 $(green '5)') Postgres-Container Top
-$(green '6)') Alle Postgres-Container entfernen
-$(green '7)') Ungenutzte Postgres-Images entfernen
+$(green '6)') Gestoppte Container entfernen
+$(green '7)') Unreferenzierte Images entfernen
 $(red '0)') Exit
 
 $(blue '>') "
@@ -637,7 +629,7 @@ $(blue '>') "
 		4) chosen_function=postgres_containers_logs ;;
 		5) chosen_function=postgres_containers_top ;;
 		6) chosen_function=remove_all_postgres_containers ;;
-		7) chosen_function=remove_unused_postgres_images ;;
+		7) chosen_function=remove_dangling_images ;;
 		0) exit 0 ;;
 		*)
 			bad_choice=1
