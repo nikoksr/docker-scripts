@@ -10,7 +10,8 @@ set -e
 version='v0.24.2-alpha'
 
 # Visual separation bar
-separator='######################################################################'
+separator_thick='######################################################################'
+separator_thin='======================================================================'
 
 # Colors codes
 green='\e[32m'
@@ -97,9 +98,9 @@ are_permissions_sufficient() {
 			return 0
 		fi
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 Docker ist enweder nicht installiert oder die Installation konnte nicht gefunden werden. Bitte starten
 Sie den Skript (vorzugsweise) mit 'sudo' oder als 'root' Benutzer neu, um die automatische Installation
@@ -114,9 +115,9 @@ und Einrichtung von Docker zu starten.
 			return 0
 		fi
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 Docker-Daemon scheint nicht aktiviert zu sein. Bitte starten Sie den Skript (vorzugsweise) mit 'sudo' oder
 als 'root' Benutzer neu, um die automatische Aktivierung des Docker-Daemons zu starten.
@@ -127,9 +128,9 @@ als 'root' Benutzer neu, um die automatische Aktivierung des Docker-Daemons zu s
 	# If docker is installed user has to be in docker group
 	if ! is_user_in_docker_group && ! is_user_root; then
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Berechtigung')
-$(dim $separator)
+$(dim $separator_thick)
 
 Der aktuelle Benutzer muss entweder Mitglied der 'docker' Gruppe sein oder dieser Skript muss (vorzugsweise)
 mit 'sudo' oder als 'root' Benutzer ausgeführt werden.
@@ -157,7 +158,7 @@ INSTALL_SCRIPT_URL="https://get.docker.com/"
 install_docker() {
 	echo -ne "
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 $(dim "> Dieser Vorgang kann einige Minuten dauern.")
 
@@ -216,7 +217,7 @@ start_docker_daemon() {
 create_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
-$(dim $separator)
+$(dim $separator_thick)
 $(dim "
 
 Tipp: Drücken Sie 'Enter', um einen in Klammern stehenden
@@ -414,20 +415,20 @@ $(blue "### Konfiguration")
 remove_all_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Gestoppte Container entfernen')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 
 	echo -ne "
 $(red 'Liste gestoppter Container')
-===============================================================
+$separator_thin
 
 "
 
 	docker container ls -a -f "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
 
 	echo -ne "
-===============================================================
+$separator_thin
 
 
 "
@@ -479,7 +480,7 @@ $(red 'Liste gestoppter Container')
 remove_dangling_images() {
 	echo -ne "
 $(dim '# ')$(blue 'Unreferenzierte Images entfernen')
-$(dim $separator)
+$(dim $separator_thick)
 
 
 "
@@ -511,7 +512,7 @@ $(dim $separator)
 list_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container auflisten')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -525,7 +526,7 @@ postgres_containers_stats() {
 postgres_containers_logs() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container Logs')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -557,7 +558,7 @@ $(dim $separator)
 postgres_containers_top() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container Top')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -584,7 +585,7 @@ $(dim $separator)
 
 print_header() {
 	echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '#')
 $(dim '#') $(blue 'Easy-Postgres-Containers '$version'')
 $(dim '#')
@@ -593,7 +594,7 @@ $(dim '#') $(dim 'Email:')  $(blue 'contact@nikoksr.dev')
 $(dim '#') $(dim 'Lizenz:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/LICENSE')
 $(dim '#') $(dim 'Source:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/epc.sh')
 $(dim '#')
-$(dim $separator)"
+$(dim $separator_thick)"
 }
 
 # menu prints the general and interactive navigation menu.
