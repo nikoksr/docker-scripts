@@ -7,10 +7,11 @@ set -e
 #
 ####
 
-version='v0.24.1-beta'
+version='v0.24.3'
 
 # Visual separation bar
-separator='######################################################################'
+separator_thick='######################################################################'
+separator_thin='======================================================================'
 
 # Colors codes
 green='\e[32m'
@@ -97,9 +98,9 @@ are_permissions_sufficient() {
 			return 0
 		fi
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 Docker ist enweder nicht installiert oder die Installation konnte nicht gefunden werden. Bitte starten
 Sie den Skript (vorzugsweise) mit 'sudo' oder als 'root' Benutzer neu, um die automatische Installation
@@ -114,9 +115,9 @@ und Einrichtung von Docker zu starten.
 			return 0
 		fi
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 Docker-Daemon scheint nicht aktiviert zu sein. Bitte starten Sie den Skript (vorzugsweise) mit 'sudo' oder
 als 'root' Benutzer neu, um die automatische Aktivierung des Docker-Daemons zu starten.
@@ -127,9 +128,9 @@ als 'root' Benutzer neu, um die automatische Aktivierung des Docker-Daemons zu s
 	# If docker is installed user has to be in docker group
 	if ! is_user_in_docker_group && ! is_user_root; then
 		echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '# ')$(blue 'Berechtigung')
-$(dim $separator)
+$(dim $separator_thick)
 
 Der aktuelle Benutzer muss entweder Mitglied der 'docker' Gruppe sein oder dieser Skript muss (vorzugsweise)
 mit 'sudo' oder als 'root' Benutzer ausgeführt werden.
@@ -155,11 +156,9 @@ Beende Skript aufgrund von unzureichenden Berechtigungen.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
 
 install_docker() {
-
 	echo -ne "
-$(dim $separator)
 $(dim '# ')$(blue 'Docker Installation')
-$(dim $separator)
+$(dim $separator_thick)
 
 $(dim "> Dieser Vorgang kann einige Minuten dauern.")
 
@@ -218,7 +217,7 @@ start_docker_daemon() {
 create_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
-$(dim $separator)
+$(dim $separator_thick)
 $(dim "
 
 Tipp: Drücken Sie 'Enter', um einen in Klammern stehenden
@@ -231,7 +230,7 @@ $(blue "### Konfiguration")
 
 	# Anzahl, Port and Postgres Version
 	echo -ne "> Anzahl Container $(dim '(1)'):                          "
-	read -r container_count
+	read container_count
 	if [ -z "$container_count" ]; then
 		container_count=1
 	fi
@@ -267,14 +266,14 @@ $(blue "### Konfiguration")
 	fi
 
 	echo -ne "> Port $(dim '('$highest_port')'):                                   "
-	read -r external_port
+	read external_port
 	if [ -z "$external_port" ]; then
 		external_port=$highest_port
 	fi
 
 	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
-	read -r postgres_version
+	read postgres_version
 	if [ -z "$postgres_version" ]; then
 		postgres_version="latest"
 	fi
@@ -282,14 +281,14 @@ $(blue "### Konfiguration")
 	# Logging behaviour
 	echo
 	echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
-	read -r max_log_file
+	read max_log_file
 	if [ -z "$max_log_file" ]; then
 		max_log_file="5"
 	fi
 
 	default_log_file_size="20m"
 	echo -ne "> Maximale Größe einer Log-Datei $(dim '('$default_log_file_size')'):         "
-	read -r max_log_file_size
+	read max_log_file_size
 	if [ -z "$max_log_file_size" ]; then
 		max_log_file_size="$default_log_file_size"
 	fi
@@ -310,7 +309,7 @@ $(blue "### Konfiguration")
 	default_timezone="$(get_timezone)"
 	echo
 	echo -ne "> Zeitzone $(dim '('"$default_timezone"')'):                      "
-	read -r timezone
+	read timezone
 	if [ -z "$timezone" ]; then
 		timezone="$default_timezone"
 	fi
@@ -325,7 +324,7 @@ $(blue "### Konfiguration")
    $(blue '4)') Nie
 
    $(blue '>') "
-	read -r choice
+	read choice
 	case "$choice" in
 	2) restart="on-failure" ;;
 	3) restart="unless-stopped" ;;
@@ -336,13 +335,13 @@ $(blue "### Konfiguration")
 
 	# Postgres user password
 	echo -ne "> Postgres Admin Passwort $(dim '(postgres)'):            "
-	read -r -s admin_pwd
+	read -s admin_pwd
 	echo
 	if [ -z "$admin_pwd" ]; then
 		admin_pwd="postgres"
 	else
 		echo -ne "> Passwort bestätigen:                           "
-		read -r -s admin_pwd_confirm
+		read -s admin_pwd_confirm
 		echo
 		if [ ! "$admin_pwd" = "$admin_pwd_confirm" ]; then
 			echo
@@ -354,7 +353,7 @@ $(blue "### Konfiguration")
 
 	# Database name
 	echo -ne "> Datenbank Name $(dim '(postgres)'):                     "
-	read -r db_name
+	read db_name
 	if [ -z "$db_name" ]; then
 		db_name="postgres"
 	fi
@@ -415,27 +414,33 @@ $(blue "### Konfiguration")
 
 remove_all_postgres_containers() {
 	echo -ne "
+$(dim '# ')$(blue 'Gestoppte Container entfernen')
+$(dim $separator_thick)
 
-$(dim $separator)
-$(dim '# ')$(blue 'Alle Postgres-Container löschen')
-$(dim $separator)
+"
+
+	echo -ne "
+$(red 'Liste gestoppter Container')
+$separator_thin
+
+"
+
+	docker container ls -a -f "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+
+	echo -ne "
+$separator_thin
+
 
 "
 
 	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(red 'ALLE(!)') laufenden & gestoppten Postgres-Container endgültig zu entfernen!
-   Als Postgres-Container gelten alle Container, welche basierend auf einem Postgres-Image gebaut wurden.
-
-   Sollte Sie sich zuvor eine Liste dieser Container ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker ps -a | grep 'postgres:*'')
+   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Container endgültig zu entfernen!
 
 
 "
 
-	read -r -p "> Möchten Sie fortfahren (j/N)? " choice
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
 
 	if [ -z "$choice" ]; then
 		choice="n"
@@ -449,13 +454,13 @@ $(dim $separator)
 	echo -ne "
 
    Dies ist $(red 'die letzte Warnung!')
-   Es werden ALLE(!) Postgres-Container gelöscht! Dieser Schritt kann nicht rückgängig gemacht werden und
-   $(red 'Datenverlust') ist eine mögliche Folge!
+   Es werden ALLE(!) gestoppten Container gelöscht! Dieser Schritt kann nicht
+   rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
 
 
 "
 
-	read -r -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
+	read -p "> Möchten Sie trotzdem fortfahren (j/N)? " choice
 
 	if [ -z "$choice" ]; then
 		choice="n"
@@ -472,28 +477,22 @@ $(dim $separator)
 	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
 }
 
-remove_unused_postgres_images() {
+remove_dangling_images() {
 	echo -ne "
-
-$(dim $separator)
-$(dim '# ')$(blue 'Ungenutzte Postgres-Images löschen')
-$(dim $separator)
-
-"
-
-	echo -ne " $(red 'WARNUNG')
-
-   Sie sind im Begriff $(red 'alle ungenutzten') Postgres-Images endgültig zu entfernen!
-
-   Sollte Sie sich zuvor eine Liste dieser Images ansehen wollen, beenden Sie den Skript mit CTRL+C
-   und führen Sie folgenden Befehl aus:
-
-   $(blue 'docker images | grep '"'single quotes'"'')
+$(dim '# ')$(blue 'Unreferenzierte Images entfernen')
+$(dim $separator_thick)
 
 
 "
 
-	read -r -p "> Möchten Sie fortfahren (j/N)? " choice
+	echo -ne "$(red 'WARNUNG')
+
+ Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Docker-Images zu entfernen!
+
+
+"
+
+	read -p "> Möchten Sie fortfahren (j/N)? " choice
 
 	if [ -z "$choice" ]; then
 		choice="n"
@@ -507,15 +506,13 @@ $(dim $separator)
 	echo "> Entferne Images"
 	echo
 
-	docker rmi "$(docker images | grep 'postgres')"
+	docker image prune -f
 }
 
 list_postgres_containers() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container auflisten')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -528,10 +525,8 @@ postgres_containers_stats() {
 
 postgres_containers_logs() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Logs')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -540,14 +535,14 @@ $(dim $separator)
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
 	echo
-	read -r -p "> " id
+	read -p "> " id
 
 	if [ -z "$id" ]; then
 		exit 1
 	fi
 
 	echo
-	read -r -p "> Live verfolgen (j/N)? " choice
+	read -p "> Live verfolgen (j/N)? " choice
 
 	if [ -z "$choice" ]; then
 		choice="n"
@@ -562,10 +557,8 @@ $(dim $separator)
 
 postgres_containers_top() {
 	echo -ne "
-
-$(dim $separator)
 $(dim '# ')$(blue 'Postgres-Container Top')
-$(dim $separator)
+$(dim $separator_thick)
 
 "
 	docker ps | head -n1
@@ -574,7 +567,7 @@ $(dim $separator)
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
 	echo
-	read -r -p "> " id
+	read -p "> " id
 
 	if [ -z "$id" ]; then
 		exit 1
@@ -592,7 +585,7 @@ $(dim $separator)
 
 print_header() {
 	echo -ne "
-$(dim $separator)
+$(dim $separator_thick)
 $(dim '#')
 $(dim '#') $(blue 'Easy-Postgres-Containers '$version'')
 $(dim '#')
@@ -601,68 +594,56 @@ $(dim '#') $(dim 'Email:')  $(blue 'contact@nikoksr.dev')
 $(dim '#') $(dim 'Lizenz:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/LICENSE')
 $(dim '#') $(dim 'Source:') $(blue 'https://github.com/nikoksr/docker-scripts/blob/main/epc.sh')
 $(dim '#')
-$(dim $separator)"
+$(dim $separator_thick)"
 }
 
 # menu prints the general and interactive navigation menu.
 menu() {
-	print_header
+	local chosen_function
+	local bad_choice=1
 
-	echo -ne "
+	while [ "$bad_choice" == 1 ]; do
+		# Reset choice to make the loop work.
+		bad_choice=0
 
+		print_header
+
+		echo -e "$message"
+		message=""
+
+		echo -ne "
 $(green '1)') Postgres-Container erstellen & starten
 $(green '2)') Postgres-Container auflisten
 $(green '3)') Postgres-Container Statistiken
 $(green '4)') Postgres-Container Log
 $(green '5)') Postgres-Container Top
-$(green '6)') Alle Postgres-Container entfernen
-$(green '7)') Ungenutzte Postgres-Images entfernen
+$(green '6)') Gestoppte Container entfernen
+$(green '7)') Unreferenzierte Images entfernen
 $(red '0)') Exit
 
 $(blue '>') "
-	read -r a
-	case $a in
-	1)
-		clear
-		print_header
-		create_postgres_containers
-		;;
-	2)
-		clear
-		print_header
-		list_postgres_containers
-		;;
-	3)
-		clear
-		print_header
-		postgres_containers_stats
-		;;
-	4)
-		clear
-		print_header
-		postgres_containers_logs
-		;;
-	5)
-		clear
-		print_header
-		postgres_containers_top
-		;;
-	6)
-		clear
-		print_header
-		remove_all_postgres_containers
-		;;
-	7)
-		clear
-		print_header
-		remove_unused_postgres_images
-		;;
-	0) exit 0 ;;
-	*)
-		echo -e "$red""Warnung: Option existiert nicht.""$no_color"
-		menu
-		;;
-	esac
+		read choice
+		case $choice in
+		1) chosen_function=create_postgres_containers ;;
+		2) chosen_function=list_postgres_containers ;;
+		3) chosen_function=postgres_containers_stats ;;
+		4) chosen_function=postgres_containers_logs ;;
+		5) chosen_function=postgres_containers_top ;;
+		6) chosen_function=remove_all_postgres_containers ;;
+		7) chosen_function=remove_dangling_images ;;
+		0) exit 0 ;;
+		*)
+			bad_choice=1
+			clear
+			message="\n\n$(red 'Warnung:') Ungültige Option gewählt."
+			;;
+		esac
+	done
+
+	# Good choice; execute the chosen funtion
+	clear
+	print_header
+	$chosen_function
 }
 
 # entrypoint for the application.
