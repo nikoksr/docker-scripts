@@ -10,16 +10,14 @@ Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beoba
 
 ### Feature
 
+-   `Docker` und automatisch installieren & konfigurieren
 -   Postgres-Container erstellen & starten
 -   Postgres-Container auflisten
 -   Postgres-Container Statistiken
 -   Postgres-Container Log
 -   Postgres-Container Top
--   Alle Postgres-Container entfernen
--   Ungenutzte Postgres-Images entfernen
--   `Docker` und automatisch installieren & konfigurieren
-
-> Automatische Docker Installation ist aktuell unter Ubuntu (& Ubuntu-Forks), Debian (& Debian-Forks), CentOS, Fedora und Arch Linux unterstützt.
+-   Gestoppte Container entfernen
+-   Unreferenzierte Images entfernen
 
 ### Abhängigkeiten
 
