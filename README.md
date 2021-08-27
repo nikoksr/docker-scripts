@@ -10,7 +10,7 @@ Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beoba
 
 ### Feature
 
--   `Docker` und automatisch installieren & konfigurieren
+-   `Docker` automatisch installieren & konfigurieren
 -   Postgres-Container erstellen & starten
 -   Postgres-Container auflisten
 -   Postgres-Container Statistiken
