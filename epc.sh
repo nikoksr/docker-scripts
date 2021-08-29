@@ -235,6 +235,16 @@ $(blue "### Konfiguration")
 		container_count=1
 	fi
 
+	# Container name
+	local DEFAULT_CONTAINER_NAME="postgres"
+	echo -ne "> Container Name $(dim '(Zufall)'):                       "
+	read container_name
+	if [ -z "$container_name" ]; then
+		container_name="$DEFAULT_CONTAINER_NAME"
+	fi
+
+	echo
+
 	# Get currently highest port in use
 	ports_list="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
 
@@ -371,10 +381,17 @@ $(blue "### Konfiguration")
 	ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
 	end_port=$((external_port + container_count - 1))
 
+	local original_container_name="$container_name"
+
 	for port in $(seq $external_port $end_port); do
-		local name="postgres_$RANDOM"
+
+		container_name="$original_container_name"
+		if [[ "$container_count" -gt 1 || "$container_count" -eq 1 && "$container_name" == "$DEFAULT_CONTAINER_NAME" ]]; then
+			container_name="${container_name}_$RANDOM"
+		fi
+
 		docker run \
-			--name "$name" \
+			--name "$container_name" \
 			--log-opt max-file="$max_log_file" \
 			--log-opt max-size="$max_log_file_size" \
 			--publish "$port":5432 \
@@ -390,7 +407,7 @@ $(blue "### Konfiguration")
 			# Wait 90 seconds for container to start
 			is_running=1
 			while [[ $i -lt 90 ]]; do
-				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
+				if [[ "$(docker exec $container_name pg_isready)" == *"accepting"* ]]; then
 					is_running=0
 					break
 				fi
@@ -400,14 +417,14 @@ $(blue "### Konfiguration")
 
 			# Check if container is running and create database if so.
 			if [ "$is_running" -eq 0 ]; then
-				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;" &&
+				docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" &&
 					echo "> Datenbank $db_name erfolgreich erstellt..."
 			else
 				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
 			fi
 		fi
 
-		echo -e "> Container $(dim $name) gestartet auf $(green "$ip":"$port")"
+		echo -e "> Container $(dim $container_name) gestartet auf $(green "$ip":"$port")"
 	done
 	echo
 }
