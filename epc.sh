@@ -402,7 +402,7 @@ $(blue "### Konfiguration")
 			postgres:"$postgres_version" >/dev/null
 
 		# Only create database if name was given. Skip on empty.
-		if [ ! -z "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
+		if [ -n "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
 
 			# Wait 90 seconds for container to start
 			is_running=1
