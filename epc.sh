@@ -160,7 +160,7 @@ install_docker() {
 $(dim '# ')$(blue 'Docker Installation')
 $(dim $separator_thick)
 
-$(dim "> Dieser Vorgang kann einige Minuten dauern.")
+$(dim "Hinweis: Dieser Vorgang kann einige Minuten dauern.")
 
 "
 
@@ -431,13 +431,13 @@ $(blue "### Konfiguration")
 
 remove_all_postgres_containers() {
 	echo -ne "
-$(dim '# ')$(blue 'Gestoppte Container entfernen')
+$(dim '# ')$(blue 'Gestoppte Postgres-Container entfernen')
 $(dim $separator_thick)
 
 "
 
 	echo -ne "
-$(red 'Liste gestoppter Container')
+$(red 'Liste gestoppter Postgres-Container')
 $separator_thin
 
 "
@@ -455,7 +455,7 @@ $separator_thin
 
 	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Container endgültig zu entfernen!
+   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Postgres-Container endgültig zu entfernen!
 
 
 "
@@ -474,8 +474,8 @@ $separator_thin
 	echo -ne "
 
    Dies ist $(red 'die letzte Warnung!')
-   Es werden ALLE(!) gestoppten Container gelöscht! Dieser Schritt kann nicht
-   rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
+   Es werden ALLE(!) gestoppten Postgres-Container gelöscht! Dieser Schritt kann
+   nicht rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
 
 
 "
@@ -502,7 +502,7 @@ $separator_thin
 
 remove_dangling_images() {
 	echo -ne "
-$(dim '# ')$(blue 'Unreferenzierte Images entfernen')
+$(dim '# ')$(blue 'Unreferenzierte Postgres-Images entfernen')
 $(dim $separator_thick)
 
 
@@ -510,7 +510,8 @@ $(dim $separator_thick)
 
 	echo -ne "$(red 'WARNUNG')
 
- Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Docker-Images zu entfernen!
+ Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Postgres-Images
+ zu entfernen!
 
 
 "
@@ -612,7 +613,7 @@ $(dim $separator_thick)
 
 postgres_containers_top() {
 	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container Top')
+$(dim '# ')$(blue 'Postgres-Container Prozesse')
 $(dim $separator_thick)
 
 "
@@ -669,10 +670,10 @@ menu() {
 $(green '1)') Postgres-Container erstellen & starten
 $(green '2)') Postgres-Container auflisten
 $(green '3)') Postgres-Container Statistiken
-$(green '4)') Postgres-Container Log
-$(green '5)') Postgres-Container Top
-$(green '6)') Gestoppte Container entfernen
-$(green '7)') Unreferenzierte Images entfernen
+$(green '4)') Postgres-Container Logs
+$(green '5)') Postgres-Container Prozesse
+$(green '6)') Gestoppte Postgres-Container entfernen
+$(green '7)') Unreferenzierte Postgres-Images entfernen
 $(red '0)') Exit
 
 $(blue '>') "
