@@ -606,7 +606,7 @@ $(dim $separator_thick)
 
 	clear
 	case $choice in
-	"j" | "J" | "y" | "Y") docker container logs --since 0s -f "$id" ;;
+	"j" | "J" | "y" | "Y") docker container logs -f "$id" ;;
 	*) docker container logs "$id" ;;
 	esac
 }
@@ -629,7 +629,7 @@ $(dim $separator_thick)
 	fi
 
 	clear
-	watch -n 0 docker container top "$id"
+	watch -n 0 "docker container top $id"
 }
 
 ####
