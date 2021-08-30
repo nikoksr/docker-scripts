@@ -442,7 +442,10 @@ $separator_thin
 
 "
 
-	docker container ls -a -f "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+	docker container ls -a -f ancestor=postgres -f status=exited --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+
+	# Old version
+	# docker container ls -a -f "status=exited" --format "table {{.Image}}\t{{.ID}}\t{{.Names}}\t{{.RunningFor}}" | grep -E '^postgres(:\S+)?\W'
 
 	echo -ne "
 $separator_thin
@@ -491,7 +494,10 @@ $separator_thin
 	echo "> Entferne Container"
 	echo
 
-	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
+	docker container rm -f "$(docker container ls -a -f ancestor=postgres -f status=exited -q)"
+
+	# Old version
+	# docker container ls -a -f "status=exited" --format "table {{.Image}}\t{{.ID}}" | grep -E '^postgres(:\S+)?\W' | awk '{print $2 }' | xargs -I {} docker rm -f {}
 }
 
 remove_dangling_images() {
@@ -509,6 +515,20 @@ $(dim $separator_thick)
 
 "
 
+	echo -ne "
+$(red 'Liste unreferenzierter Postgres-Images')
+$separator_thin
+
+"
+
+	docker images postgres -f dangling=true
+
+	echo -ne "
+$separator_thin
+
+
+"
+
 	read -p "> Möchten Sie fortfahren (j/N)? " choice
 
 	if [ -z "$choice" ]; then
@@ -521,9 +541,17 @@ $(dim $separator_thick)
 	esac
 
 	echo "> Entferne Images"
-	echo
+	echo -ne "
 
-	docker image prune -f
+$(dim "Hinweis: Mögliche Meldungen zu Images, welche nicht entfernt werden
+         konnten, entsprechen korrektem Verhalten. Diese Images sind
+         zwar unreferenziert, werden aber aktiv von einem Container
+         verwendet und sollten daher nicht entfernt werden.")
+
+
+"
+
+	docker image rm "$(docker images postgres -f dangling=true -q)"
 }
 
 list_postgres_containers() {
@@ -532,12 +560,23 @@ $(dim '# ')$(blue 'Postgres-Container auflisten')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker ps -a | grep 'postgres:*'
+
+	docker container ls -a --filter ancestor=postgres
+
 }
 
 postgres_containers_stats() {
-	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Statistiken')
+$(dim $separator_thick)
+$(dim "
+
+Hinweis: Das Laden der Statistiken kann ein paar Sekunden dauern.")
+
+
+"
+
+	watch -n 0 "docker container ls -a --filter ancestor=postgres | docker stats --no-stream"
 }
 
 postgres_containers_logs() {
@@ -546,8 +585,7 @@ $(dim '# ')$(blue 'Postgres-Container Logs')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker container ls | grep 'postgres:*'
+	docker container ls -a --filter ancestor=postgres
 
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
@@ -578,8 +616,7 @@ $(dim '# ')$(blue 'Postgres-Container Top')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker container ls | grep 'postgres:*'
+	docker container ls -a --filter ancestor=postgres
 
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
