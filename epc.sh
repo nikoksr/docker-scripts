@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.24.3'
+version='v0.25.2-alpha'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -160,7 +160,7 @@ install_docker() {
 $(dim '# ')$(blue 'Docker Installation')
 $(dim $separator_thick)
 
-$(dim "> Dieser Vorgang kann einige Minuten dauern.")
+$(dim "Hinweis: Dieser Vorgang kann einige Minuten dauern.")
 
 "
 
@@ -234,6 +234,16 @@ $(blue "### Konfiguration")
 	if [ -z "$container_count" ]; then
 		container_count=1
 	fi
+
+	# Container name
+	local DEFAULT_CONTAINER_NAME="postgres"
+	echo -ne "> Container Name $(dim '(Zufall)'):                       "
+	read container_name
+	if [ -z "$container_name" ]; then
+		container_name="$DEFAULT_CONTAINER_NAME"
+	fi
+
+	echo
 
 	# Get currently highest port in use
 	ports_list="$(docker ps -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
@@ -371,10 +381,17 @@ $(blue "### Konfiguration")
 	ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
 	end_port=$((external_port + container_count - 1))
 
+	local original_container_name="$container_name"
+
 	for port in $(seq $external_port $end_port); do
-		local name="postgres_$RANDOM"
+
+		container_name="$original_container_name"
+		if [[ "$container_count" -gt 1 || "$container_count" -eq 1 && "$container_name" == "$DEFAULT_CONTAINER_NAME" ]]; then
+			container_name="${container_name}_$RANDOM"
+		fi
+
 		docker run \
-			--name "$name" \
+			--name "$container_name" \
 			--log-opt max-file="$max_log_file" \
 			--log-opt max-size="$max_log_file_size" \
 			--publish "$port":5432 \
@@ -385,12 +402,12 @@ $(blue "### Konfiguration")
 			postgres:"$postgres_version" >/dev/null
 
 		# Only create database if name was given. Skip on empty.
-		if [ ! -z "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
+		if [ -n "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
 
 			# Wait 90 seconds for container to start
 			is_running=1
 			while [[ $i -lt 90 ]]; do
-				if [[ "$(docker exec $name pg_isready)" == *"accepting"* ]]; then
+				if [[ "$(docker exec $container_name pg_isready)" == *"accepting"* ]]; then
 					is_running=0
 					break
 				fi
@@ -400,32 +417,35 @@ $(blue "### Konfiguration")
 
 			# Check if container is running and create database if so.
 			if [ "$is_running" -eq 0 ]; then
-				docker exec -it "$name" psql -U postgres -c "CREATE DATABASE $db_name;" &&
+				docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" &&
 					echo "> Datenbank $db_name erfolgreich erstellt..."
 			else
 				echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
 			fi
 		fi
 
-		echo -e "> Container $(dim $name) gestartet auf $(green "$ip":"$port")"
+		echo -e "> Container $(dim $container_name) gestartet auf $(green "$ip":"$port")"
 	done
 	echo
 }
 
 remove_all_postgres_containers() {
 	echo -ne "
-$(dim '# ')$(blue 'Gestoppte Container entfernen')
+$(dim '# ')$(blue 'Gestoppte Postgres-Container entfernen')
 $(dim $separator_thick)
 
 "
 
 	echo -ne "
-$(red 'Liste gestoppter Container')
+$(red 'Liste gestoppter Postgres-Container')
 $separator_thin
 
 "
 
-	docker container ls -a -f "status=exited" --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+	docker container ls -a -f ancestor=postgres -f status=exited --format "table {{.ID}}\t{{.Image}}\t{{.Names}}\t{{.RunningFor}}"
+
+	# Old version
+	# docker container ls -a -f "status=exited" --format "table {{.Image}}\t{{.ID}}\t{{.Names}}\t{{.RunningFor}}" | grep -E '^postgres(:\S+)?\W'
 
 	echo -ne "
 $separator_thin
@@ -435,7 +455,7 @@ $separator_thin
 
 	echo -ne " $(red 'WARNUNG')
 
-   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Container endgültig zu entfernen!
+   Sie sind im Begriff $(red 'ALLE(!)') gestoppten Postgres-Container endgültig zu entfernen!
 
 
 "
@@ -454,8 +474,8 @@ $separator_thin
 	echo -ne "
 
    Dies ist $(red 'die letzte Warnung!')
-   Es werden ALLE(!) gestoppten Container gelöscht! Dieser Schritt kann nicht
-   rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
+   Es werden ALLE(!) gestoppten Postgres-Container gelöscht! Dieser Schritt kann
+   nicht rückgängig gemacht werden und $(red 'Datenverlust') ist eine mögliche Folge!
 
 
 "
@@ -474,12 +494,15 @@ $separator_thin
 	echo "> Entferne Container"
 	echo
 
-	docker ps -a | awk '{ print $1,$2 }' | grep 'postgres:*' | awk '{print $1 }' | xargs -I {} docker rm -f {}
+	docker container rm -f "$(docker container ls -a -f ancestor=postgres -f status=exited -q)"
+
+	# Old version
+	# docker container ls -a -f "status=exited" --format "table {{.Image}}\t{{.ID}}" | grep -E '^postgres(:\S+)?\W' | awk '{print $2 }' | xargs -I {} docker rm -f {}
 }
 
 remove_dangling_images() {
 	echo -ne "
-$(dim '# ')$(blue 'Unreferenzierte Images entfernen')
+$(dim '# ')$(blue 'Unreferenzierte Postgres-Images entfernen')
 $(dim $separator_thick)
 
 
@@ -487,7 +510,22 @@ $(dim $separator_thick)
 
 	echo -ne "$(red 'WARNUNG')
 
- Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Docker-Images zu entfernen!
+ Sie sind im Begriff $(red 'alle') unreferenzierten/dangling Postgres-Images
+ zu entfernen!
+
+
+"
+
+	echo -ne "
+$(red 'Liste unreferenzierter Postgres-Images')
+$separator_thin
+
+"
+
+	docker images postgres -f dangling=true
+
+	echo -ne "
+$separator_thin
 
 
 "
@@ -504,9 +542,17 @@ $(dim $separator_thick)
 	esac
 
 	echo "> Entferne Images"
-	echo
+	echo -ne "
 
-	docker image prune -f
+$(dim "Hinweis: Mögliche Meldungen zu Images, welche nicht entfernt werden
+         konnten, entsprechen korrektem Verhalten. Diese Images sind
+         zwar unreferenziert, werden aber aktiv von einem Container
+         verwendet und sollten daher nicht entfernt werden.")
+
+
+"
+
+	docker image rm "$(docker images postgres -f dangling=true -q)"
 }
 
 list_postgres_containers() {
@@ -515,12 +561,23 @@ $(dim '# ')$(blue 'Postgres-Container auflisten')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker ps -a | grep 'postgres:*'
+
+	docker container ls -a --filter ancestor=postgres
+
 }
 
 postgres_containers_stats() {
-	watch -n 0 "docker stats --no-stream | head -n1 && docker stats --no-stream | grep 'postgres:*'"
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Statistiken')
+$(dim $separator_thick)
+$(dim "
+
+Hinweis: Das Laden der Statistiken kann ein paar Sekunden dauern.")
+
+
+"
+
+	watch -n 0 "docker container ls -a --filter ancestor=postgres | docker stats --no-stream"
 }
 
 postgres_containers_logs() {
@@ -529,8 +586,7 @@ $(dim '# ')$(blue 'Postgres-Container Logs')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker container ls | grep 'postgres:*'
+	docker container ls -a --filter ancestor=postgres
 
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
@@ -550,19 +606,18 @@ $(dim $separator_thick)
 
 	clear
 	case $choice in
-	"j" | "J" | "y" | "Y") docker container logs --since 0s -f "$id" ;;
+	"j" | "J" | "y" | "Y") docker container logs -f "$id" ;;
 	*) docker container logs "$id" ;;
 	esac
 }
 
 postgres_containers_top() {
 	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container Top')
+$(dim '# ')$(blue 'Postgres-Container Prozesse')
 $(dim $separator_thick)
 
 "
-	docker ps | head -n1
-	docker container ls | grep 'postgres:*'
+	docker container ls -a --filter ancestor=postgres
 
 	echo
 	echo -ne "$(blue 'Container-ID eingeben')"
@@ -574,7 +629,7 @@ $(dim $separator_thick)
 	fi
 
 	clear
-	watch -n 0 docker container top "$id"
+	watch -n 0 "docker container top $id"
 }
 
 ####
@@ -615,10 +670,10 @@ menu() {
 $(green '1)') Postgres-Container erstellen & starten
 $(green '2)') Postgres-Container auflisten
 $(green '3)') Postgres-Container Statistiken
-$(green '4)') Postgres-Container Log
-$(green '5)') Postgres-Container Top
-$(green '6)') Gestoppte Container entfernen
-$(green '7)') Unreferenzierte Images entfernen
+$(green '4)') Postgres-Container Logs
+$(green '5)') Postgres-Container Prozesse
+$(green '6)') Gestoppte Postgres-Container entfernen
+$(green '7)') Unreferenzierte Postgres-Images entfernen
 $(red '0)') Exit
 
 $(blue '>') "
