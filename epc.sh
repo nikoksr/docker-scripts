@@ -146,6 +146,57 @@ Beende Skript aufgrund von unzureichenden Berechtigungen.
 	fi
 }
 
+get_postgres_container_ids() {
+	# Need to prefix variable with something due to bash "name references" behaviour (see here for more: http://mywiki.wooledge.org/BashFAQ/048#line-120)
+	declare -n epc_postgres_containers=$1
+
+	# Get list of containers that are ancestors of a postgres image. These containers usually display their image id/name like this:
+	#    - postgres
+	#    - postgres:latest
+	#    - postgres:9.6
+	epc_postgres_containers=$(docker container ls -a --filter ancestor=postgres -q)
+	readarray -t epc_postgres_containers <<<"$epc_postgres_containers"
+
+	# Get list of all containers but only take their IDs and image IDs.
+	undefined_containers=$(docker container ls -a --format "table {{.ID}} {{.Image}}" | tail -n +2)
+	readarray -t undefined_containers <<<"$undefined_containers"
+
+	# Loop over undefined containers to check which use a postgres image.
+	for idx in "${!undefined_containers[@]}"; do
+		container_id=$(awk '{ print $1 }' <<<"${undefined_containers[idx]}")
+		image_id=$(awk '{ print $2 }' <<<"${undefined_containers[idx]}")
+
+		# Skip if not a valid image id e.g. an image name.
+		#   - 293e4ed402ba     -> is a valid ID
+		#   - postgres:latest  -> is an image name not an ID
+		if ! grep -q -E '^[a-zA-Z0-9]{12}$' <<<"$image_id"; then
+			continue
+		fi
+
+		# We could use a hash set of image IDs here to avoid duplicate lookups but I'm gonna keep it simple
+		# for now; stability > performance at this point.
+
+		# Check images repository digest if its prefixed with 'postgres'. This is our validation if a container was
+		# once build on a postgres image.
+		if ! docker image inspect --format='{{.RepoDigests}}' "$image_id" | grep -q -E '^\[postgres@.*'; then
+			continue
+		fi
+
+		epc_postgres_containers+=("$container_id")
+	done
+}
+
+container_filter_from_ids() {
+	local container_ids=("$@")
+	local filter_string=""
+
+	for idx in "${!container_ids[@]}"; do
+		filter_string="${filter_string} -f id=${container_ids[idx]}"
+	done
+
+	echo "$filter_string"
+}
+
 ####
 #
 # DOCKER INSTALLATION
@@ -183,9 +234,6 @@ $(red 'Warnung:') Exit-Code des Installers deutet auf Fehler im Installationspro
          -> Installation wahrscheinlich unvollständig.
 
 "
-		# Possible repair commands
-		# dpkg --configure -a
-		# apt install -f
 
 		exit 1
 	fi
@@ -426,55 +474,96 @@ $(blue "### Konfiguration")
 	echo
 }
 
-get_postgres_container_ids() {
-	# Need to prefix variable with something due to bash "name references" behaviour (see here for more: http://mywiki.wooledge.org/BashFAQ/048#line-120)
-	declare -n epc_postgres_containers=$1
+list_postgres_containers() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container auflisten')
+$(dim $separator_thick)
 
-	# Get list of containers that are ancestors of a postgres image. These containers usually display their image id/name like this:
-	#    - postgres
-	#    - postgres:latest
-	#    - postgres:9.6
-	epc_postgres_containers=$(docker container ls -a --filter ancestor=postgres -q)
-	readarray -t epc_postgres_containers <<<"$epc_postgres_containers"
+"
 
-	# Get list of all containers but only take their IDs and image IDs.
-	undefined_containers=$(docker container ls -a --format "table {{.ID}} {{.Image}}" | tail -n +2)
-	readarray -t undefined_containers <<<"$undefined_containers"
+	local container_ids
+	get_postgres_container_ids container_ids
+	filter_string=$(container_filter_from_ids "${container_ids[@]}")
 
-	# Loop over undefined containers to check which use a postgres image.
-	for idx in "${!undefined_containers[@]}"; do
-		container_id=$(awk '{ print $1 }' <<<"${undefined_containers[idx]}")
-		image_id=$(awk '{ print $2 }' <<<"${undefined_containers[idx]}")
-
-		# Skip if not a valid image id e.g. an image name.
-		#   - 293e4ed402ba     -> is a valid ID
-		#   - postgres:latest  -> is an image name not an ID
-		if ! grep -q -E '^[a-zA-Z0-9]{12}$' <<<"$image_id"; then
-			continue
-		fi
-
-		# We could use a hash set of image IDs here to avoid duplicate lookups but I'm gonna keep it simple
-		# for now; stability > performance at this point.
-
-		# Check images repository digest if its prefixed with 'postgres'. This is our validation if a container was
-		# once build on a postgres image.
-		if ! docker image inspect --format='{{.RepoDigests}}' "$image_id" | grep -q -E '^\[postgres@.*'; then
-			continue
-		fi
-
-		epc_postgres_containers+=("$container_id")
-	done
+	docker container ls -a --format 'table {{.ID}}\t{{.Image}}\t{{.RunningFor}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}' $filter_string
 }
 
-container_filter_from_ids() {
-	local container_ids=("$@")
-	local filter_string=""
+postgres_containers_stats() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Statistiken')
+$(dim $separator_thick)
+$(dim "
 
-	for idx in "${!container_ids[@]}"; do
-		filter_string="${filter_string} -f id=${container_ids[idx]}"
-	done
+Hinweis: Das Laden der Statistiken kann ein paar Sekunden dauern.")
 
-	echo "$filter_string"
+
+"
+
+	local container_ids
+	get_postgres_container_ids container_ids
+	filter_string=$(container_filter_from_ids "${container_ids[@]}")
+
+	watch -n 0 "docker container ls $filter_string | docker stats --no-stream"
+}
+
+postgres_containers_logs() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Logs')
+$(dim $separator_thick)
+
+"
+	local container_ids
+	get_postgres_container_ids container_ids
+	filter_string=$(container_filter_from_ids "${container_ids[@]}")
+
+	docker container ls -a $filter_string --format 'table {{.ID}}\t{{.Image}}\t{{.RunningFor}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}'
+
+	echo
+	echo -ne "$(blue 'Container-ID eingeben')"
+	echo
+	read -p "> " id
+
+	if [ -z "$id" ]; then
+		exit 1
+	fi
+
+	echo
+	read -p "> Live verfolgen (j/N)? " choice
+
+	if [ -z "$choice" ]; then
+		choice="n"
+	fi
+
+	clear
+	case $choice in
+	"j" | "J" | "y" | "Y") docker container logs -f "$id" ;;
+	*) docker container logs "$id" ;;
+	esac
+}
+
+postgres_containers_top() {
+	echo -ne "
+$(dim '# ')$(blue 'Postgres-Container Prozesse')
+$(dim $separator_thick)
+
+"
+	local container_ids
+	get_postgres_container_ids container_ids
+	filter_string=$(container_filter_from_ids "${container_ids[@]}")
+
+	docker container ls -a $filter_string --format 'table {{.ID}}\t{{.Image}}\t{{.RunningFor}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}'
+
+	echo
+	echo -ne "$(blue 'Container-ID eingeben')"
+	echo
+	read -p "> " id
+
+	if [ -z "$id" ]; then
+		exit 1
+	fi
+
+	clear
+	watch -n 0 "docker container top $id"
 }
 
 remove_all_postgres_containers() {
@@ -599,98 +688,6 @@ $(dim "Hinweis: Mögliche Meldungen zu Images, welche nicht entfernt werden
 "
 
 	docker image rm "$(docker images postgres -f dangling=true -q)"
-}
-
-list_postgres_containers() {
-	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container auflisten')
-$(dim $separator_thick)
-
-"
-
-	local container_ids
-	get_postgres_container_ids container_ids
-	filter_string=$(container_filter_from_ids "${container_ids[@]}")
-
-	docker container ls -a --format 'table {{.ID}}\t{{.Image}}\t{{.RunningFor}}\t{{.Status}}\t{{.Ports}}\t{{.Names}}' $filter_string
-}
-
-postgres_containers_stats() {
-	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container Statistiken')
-$(dim $separator_thick)
-$(dim "
-
-Hinweis: Das Laden der Statistiken kann ein paar Sekunden dauern.")
-
-
-"
-
-	local container_ids
-	get_postgres_container_ids container_ids
-	filter_string=$(container_filter_from_ids "${container_ids[@]}")
-
-	watch -n 0 "docker container ls $filter_string | docker stats --no-stream"
-}
-
-postgres_containers_logs() {
-	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container Logs')
-$(dim $separator_thick)
-
-"
-	local container_ids
-	get_postgres_container_ids container_ids
-	filter_string=$(container_filter_from_ids "${container_ids[@]}")
-
-	docker container ls -a $filter_string
-
-	echo
-	echo -ne "$(blue 'Container-ID eingeben')"
-	echo
-	read -p "> " id
-
-	if [ -z "$id" ]; then
-		exit 1
-	fi
-
-	echo
-	read -p "> Live verfolgen (j/N)? " choice
-
-	if [ -z "$choice" ]; then
-		choice="n"
-	fi
-
-	clear
-	case $choice in
-	"j" | "J" | "y" | "Y") docker container logs -f "$id" ;;
-	*) docker container logs "$id" ;;
-	esac
-}
-
-postgres_containers_top() {
-	echo -ne "
-$(dim '# ')$(blue 'Postgres-Container Prozesse')
-$(dim $separator_thick)
-
-"
-	local container_ids
-	get_postgres_container_ids container_ids
-	filter_string=$(container_filter_from_ids "${container_ids[@]}")
-
-	docker container ls -a $filter_string
-
-	echo
-	echo -ne "$(blue 'Container-ID eingeben')"
-	echo
-	read -p "> " id
-
-	if [ -z "$id" ]; then
-		exit 1
-	fi
-
-	clear
-	watch -n 0 "docker container top $id"
 }
 
 ####
