@@ -536,7 +536,7 @@ $(dim $separator_thick)
 
 	clear
 	case $choice in
-	"j" | "J" | "y" | "Y") docker container logs -f "$id" ;;
+	"j" | "J" | "y" | "Y") docker container logs --since 0s -f "$id" ;;
 	*) docker container logs "$id" ;;
 	esac
 }
