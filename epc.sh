@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.25.4'
+version='v0.25.5'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -293,31 +293,13 @@ $(blue "### Konfiguration")
 
 	echo
 
-	# Get currently highest port in use
-	ports_list="$(docker container ls -a --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n)"
-
-	# Turn ports string into array
-	readarray -t ports_list <<<"$ports_list"
-
-	local highest_port=0
-
-	for idx in "${!ports_list[@]}"; do
-		# Last port reached; set port equal to last port + 1
-		if [ -z "${ports_list[$((idx + 1))]}" ]; then
-			highest_port=$(("${ports_list[idx]}" + 1))
-			break
-		fi
-
-		# Check if all containers fit in port range
-		if [[ ($(("${ports_list[idx]}" + "$container_count" + 1)) < ${ports_list[$((idx + 1))]}) ]]; then
-			highest_port=$(("${ports_list[idx]}" + 1))
-			break
-		fi
-	done
+    highest_port="$(docker container ls --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1 )"
 
 	# If no taken ports were detected use postgres default port as container port
-	if [[ "$highest_port" -eq 0 ]]; then
+	if [[ "$highest_port" == "" ]]; then
 		highest_port=5432
+	else
+		highest_port=$(("$highest_port" + 1))
 	fi
 
 	echo -ne "> Port $(dim '('$highest_port')'):                                   "
