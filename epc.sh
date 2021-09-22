@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.25.4'
+version='v0.25.5'
 
 # Visual separation bar
 separator_thick='######################################################################'
