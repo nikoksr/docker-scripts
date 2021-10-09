@@ -293,7 +293,7 @@ $(blue "### Konfiguration")
 
 	echo
 
-    highest_port="$(docker container ls --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1 )"
+	highest_port="$(docker container ls --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
 
 	# If no taken ports were detected use postgres default port as container port
 	if [[ "$highest_port" == "" ]]; then
@@ -311,8 +311,32 @@ $(blue "### Konfiguration")
 	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
 	read postgres_version
+	local default_postgres_version="13"
+
+	# Forced compatibility for old JDBC-Drivers. Changes introduced in postgres 14 set the default
+	# password encryption algorithm to scram-sha-256 from md5. Old JDBC are supposedly incompatible
+	# with scram-sha-256. So forcing versions between 9-13 should be sufficient to fix this issue
+	# for now. If you want to use the 'true' latest tag of the postgres image, please take a look
+	# at the main branch of this repo.
+	# See here for more:
+	#  - https://www.postgresql.org/docs/release/14.0/
+	#  - https://stackoverflow.com/a/64211633/7258346
 	if [ -z "$postgres_version" ]; then
-		postgres_version="latest"
+		postgres_version="$default_postgres_version"
+	elif [ "$postgres_version" == "latest" ]; then
+		postgres_version="$default_postgres_version"
+	else
+		local postgres_major_version=""
+		if [[ "$postgres_version" =~ (-?[0-9]+)(:?\.[0-9]+)? ]]; then
+			postgres_major_version="${BASH_REMATCH[1]}"
+		else
+			echo -e "\n> $(red 'FEHLER'): Invalide Versionsnummer '$postgres_version'\n"
+			exit 1
+		fi
+
+		if [ "$postgres_major_version" -gt 13 ] || [ "$postgres_major_version" -lt 9 ]; then
+			postgres_version="$default_postgres_version"
+		fi
 	fi
 
 	# Logging behaviour
