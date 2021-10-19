@@ -154,7 +154,7 @@ get_postgres_container_ids() {
 	#    - postgres
 	#    - postgres:latest
 	#    - postgres:9.6
-	epc_postgres_containers=$(docker container ls -a --filter ancestor=postgres -q)
+	epc_postgres_containers=$(docker container list -q --format "table {{.Image}}\t{{.ID}}" | grep -i 'postgres' | awk '{ print $2 }')
 	readarray -t epc_postgres_containers <<<"$epc_postgres_containers"
 
 	# Get list of all containers but only take their IDs and image IDs.
