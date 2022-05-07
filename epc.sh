@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.27.0'
+version='v0.28.0-rc.1'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -293,14 +293,27 @@ $(blue "### Konfiguration")
 
 	echo
 
-	highest_port="$(docker container ls --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
+	ports="$(docker inspect $(docker container ls --format '{{.ID}}') | grep -i 'HostPort' | grep -Po '(?<=\"HostPort\"\: \")\d+(?=\")' | sort -n | uniq)"
+  readarray -t ports <<<"$ports"
 
-	# If no taken ports were detected use postgres default port as container port
-	if [[ "$highest_port" == "" ]]; then
-		highest_port=5432
-	else
-		highest_port=$(("$highest_port" + 1))
-	fi
+  # Set highest port by default to last port in list plus 1.
+  highest_port=$((${ports[-1]} + 1))
+
+  # Loop over ports
+  for idx in "${!ports[@]}"; do
+    # Check if difference between current port and next port is greater than 1
+    cur="${ports[$idx]}"
+    next="${ports[((idx+1))]}"
+    if ((next - cur > 1)); then
+      highest_port=$((cur + 1))
+      break
+    fi
+  done
+
+  # If highest port is still empty, set it to the postgres default port.
+  if [ -z "$highest_port" ]; then
+    highest_port=5432
+  fi
 
 	echo -ne "> Port $(dim '('$highest_port')'):                                   "
 	read external_port
