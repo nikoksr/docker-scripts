@@ -311,7 +311,7 @@ $(blue "### Konfiguration")
 	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
 	read postgres_version
-	local default_postgres_version="12"
+	local default_postgres_version="13"
 
 	# Forced compatibility for old JDBC-Drivers. Changes introduced in postgres 14 set the default
 	# password encryption algorithm to scram-sha-256 from md5. Old JDBC are supposedly incompatible
