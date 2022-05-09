@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.28.0-rc.1'
+version='v0.28.0-rc.2'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -262,6 +262,50 @@ start_docker_daemon() {
 #
 ####
 
+pick_port() {
+  # Accept an array of ports and return a random one.
+  local ports=("$@")
+  local port=""
+  local default_port=5432
+  local default_port_found=0
+
+  # Loop over ports
+  for idx in "${!ports[@]}"; do
+    cur="${ports[$idx]}"
+    next="${ports[((idx+1))]}"
+
+    # Skip all ports lower than default postgres port
+    if ((cur < default_port)); then
+      continue
+    fi
+
+    # Remember that we found the default port. This is needed for the next step.
+    if ((cur == default_port)); then
+      default_port_found=1
+    fi
+
+    # If we're past the default port and it has not been found yet, we can use it.
+    if ((cur > default_port && default_port_found == 0)); then
+      port="$default_port"
+      break
+    fi
+
+    # If the next port is not set, or the next port is lower than the current one, or the difference between the two is
+    # greater than 1, then we use the current port and increase it by one.
+    if [ -z "$next" ] || ((cur > next)) || ((next - cur > 1)); then
+      port=$((cur + 1))
+      break
+    fi
+  done
+
+  # If highest port is still empty, set it to the postgres default port.
+  if [ -z "$port" ]; then
+    port="$default_port"
+  fi
+
+  echo "$port"
+}
+
 create_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
@@ -296,26 +340,10 @@ $(blue "### Konfiguration")
 	ports="$(docker inspect $(docker container ls --format '{{.ID}}') | grep -i 'HostPort' | grep -Po '(?<=\"HostPort\"\: \")\d+(?=\")' | sort -n | uniq)"
   readarray -t ports <<<"$ports"
 
-  # Set highest port by default to last port in list plus 1.
-  highest_port=$((${ports[-1]} + 1))
+  # Container Port
+  highest_port="$(pick_port "${ports[@]}")"
 
-  # Loop over ports
-  for idx in "${!ports[@]}"; do
-    # Check if difference between current port and next port is greater than 1
-    cur="${ports[$idx]}"
-    next="${ports[((idx+1))]}"
-    if ((next - cur > 1)); then
-      highest_port=$((cur + 1))
-      break
-    fi
-  done
-
-  # If highest port is still empty, set it to the postgres default port.
-  if [ -z "$highest_port" ]; then
-    highest_port=5432
-  fi
-
-	echo -ne "> Port $(dim '('$highest_port')'):                                   "
+	echo -ne "> Port $(dim '('"$highest_port"')'):                                   "
 	read external_port
 	if [ -z "$external_port" ]; then
 		external_port=$highest_port
@@ -803,5 +831,4 @@ entrypoint() {
 	menu
 }
 
-# Start the application.
 entrypoint
