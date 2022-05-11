@@ -7,7 +7,7 @@ set -e
 #
 ####
 
-version='v0.26.8'
+version='v0.28.0'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -262,6 +262,50 @@ start_docker_daemon() {
 #
 ####
 
+pick_port() {
+  # Accept an array of ports and return a random one.
+  local ports=("$@")
+  local port=""
+  local default_port=5432
+  local default_port_found=0
+
+  # Loop over ports
+  for idx in "${!ports[@]}"; do
+    cur="${ports[$idx]}"
+    next="${ports[((idx+1))]}"
+
+    # Skip all ports lower than default postgres port
+    if ((cur < default_port)); then
+      continue
+    fi
+
+    # Remember that we found the default port. This is needed for the next step.
+    if ((cur == default_port)); then
+      default_port_found=1
+    fi
+
+    # If we're past the default port and it has not been found yet, we can use it.
+    if ((cur > default_port && default_port_found == 0)); then
+      port="$default_port"
+      break
+    fi
+
+    # If the next port is not set, or the next port is lower than the current one, or the difference between the two is
+    # greater than 1, then we use the current port and increase it by one.
+    if [ -z "$next" ] || ((cur > next)) || ((next - cur > 1)); then
+      port=$((cur + 1))
+      break
+    fi
+  done
+
+  # If highest port is still empty, set it to the postgres default port.
+  if [ -z "$port" ]; then
+    port="$default_port"
+  fi
+
+  echo "$port"
+}
+
 create_postgres_containers() {
 	echo -ne "
 $(dim '# ')$(blue 'Postgres-Container erstellen & starten')
@@ -293,16 +337,13 @@ $(blue "### Konfiguration")
 
 	echo
 
-	highest_port="$(docker container ls --format '{{.Image}} {{.Ports}}' | grep -oP '(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):\K([0-9]+)' | sort -n | tail -n 1)"
+	ports="$(docker inspect $(docker container ls --format '{{.ID}}') | grep -i 'HostPort' | grep -Po '(?<=\"HostPort\"\: \")\d+(?=\")' | sort -n | uniq)"
+  readarray -t ports <<<"$ports"
 
-	# If no taken ports were detected use postgres default port as container port
-	if [[ "$highest_port" == "" ]]; then
-		highest_port=5432
-	else
-		highest_port=$(("$highest_port" + 1))
-	fi
+  # Container Port
+  highest_port="$(pick_port "${ports[@]}")"
 
-	echo -ne "> Port $(dim '('$highest_port')'):                                   "
+	echo -ne "> Port $(dim '('"$highest_port"')'):                                   "
 	read external_port
 	if [ -z "$external_port" ]; then
 		external_port=$highest_port
@@ -311,7 +352,7 @@ $(blue "### Konfiguration")
 	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
 	read postgres_version
-	local default_postgres_version="12"
+	local default_postgres_version="13"
 
 	# Forced compatibility for old JDBC-Drivers. Changes introduced in postgres 14 set the default
 	# password encryption algorithm to scram-sha-256 from md5. Old JDBC are supposedly incompatible
@@ -790,5 +831,4 @@ entrypoint() {
 	menu
 }
 
-# Start the application.
 entrypoint
