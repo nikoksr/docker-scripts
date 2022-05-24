@@ -6,6 +6,7 @@ set -e
 # VARS
 #
 ####
+version='v0.28.1'
 
 version='v0.28.1-rc.1'
 
