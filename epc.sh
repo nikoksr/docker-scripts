@@ -6,8 +6,9 @@ set -e
 # VARS
 #
 ####
+version='v0.28.1'
 
-version='v0.28.0'
+version='v0.28.1-rc.1'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -337,10 +338,19 @@ $(blue "### Konfiguration")
 
 	echo
 
-	ports="$(docker inspect $(docker container ls --format '{{.ID}}') | grep -i 'HostPort' | grep -Po '(?<=\"HostPort\"\: \")\d+(?=\")' | sort -n | uniq)"
-  readarray -t ports <<<"$ports"
 
   # Container Port
+
+	# Only check for reserved ports, if there are any containers running. Else, just leave the ports array empty.
+	local container_ids=$(docker container ls --format '{{.ID}}')
+	local ports=()
+
+	if [ -n "$container_ids" ]; then
+	  ports="$(docker inspect $container_ids | grep -i 'HostPort' | grep -Po '(?<=\"HostPort\"\: \")\d+(?=\")' | sort -n | uniq)"
+    readarray -t ports <<<"$ports"
+  fi
+
+  # Pick the first available port
   highest_port="$(pick_port "${ports[@]}")"
 
 	echo -ne "> Port $(dim '('"$highest_port"')'):                                   "
