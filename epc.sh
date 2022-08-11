@@ -6,7 +6,7 @@ set -e
 # VARS
 #
 ####
-version='v0.28.1'
+version='v0.29.0'
 
 # Visual separation bar
 separator_thick='######################################################################'
@@ -360,19 +360,9 @@ $(blue "### Konfiguration")
 	echo
 	echo -ne "> Postgres Version $(dim '(latest)'):                     "
 	read postgres_version
-	local default_postgres_version="13"
+	local default_postgres_version="latest"
 
-	# Forced compatibility for old JDBC-Drivers. Changes introduced in postgres 14 set the default
-	# password encryption algorithm to scram-sha-256 from md5. Old JDBC are supposedly incompatible
-	# with scram-sha-256. So forcing versions between 9-13 should be sufficient to fix this issue
-	# for now. If you want to use the 'true' latest tag of the postgres image, please take a look
-	# at the main branch of this repo.
-	# See here for more:
-	#  - https://www.postgresql.org/docs/release/14.0/
-	#  - https://stackoverflow.com/a/64211633/7258346
 	if [ -z "$postgres_version" ]; then
-		postgres_version="$default_postgres_version"
-	elif [ "$postgres_version" == "latest" ]; then
 		postgres_version="$default_postgres_version"
 	else
 		local postgres_major_version=""
@@ -381,10 +371,6 @@ $(blue "### Konfiguration")
 		else
 			echo -e "\n> $(red 'FEHLER'): Invalide Versionsnummer '$postgres_version'\n"
 			exit 1
-		fi
-
-		if [ "$postgres_major_version" -gt 13 ] || [ "$postgres_major_version" -lt 9 ]; then
-			postgres_version="$default_postgres_version"
 		fi
 	fi
 
