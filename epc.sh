@@ -6,7 +6,7 @@ set -e
 # VARS
 #
 ####
-version='v0.28.1'
+version='v0.29.0-alpha'
 
 # Visual separation bar
 separator_thick='######################################################################'
