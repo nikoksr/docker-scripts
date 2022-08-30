@@ -73,9 +73,9 @@ print_help() {
   echo "Usage: $0 [OPTIONS]"
   echo
   echo "Options:"
-  echo "  -h, --help                 Print this help message"
-  echo "  -v, --version              Print the version of this script"
-  echo "  -o, --official-repo        Use the official postgres docker repo"
+  echo "  -h, --help                 Diese Hilfe anzeigen"
+  echo "  -v, --version              Die Versoin des Scripts anzeigen"
+  echo "  -o, --official-repo        Das offizielle Postgres Docker-Repo verwenden"
 }
 
 print_version() {
