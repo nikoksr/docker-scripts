@@ -74,8 +74,8 @@ print_help() {
   echo
   echo "Options:"
   echo "  -h, --help                 Diese Hilfe anzeigen"
-  echo "  -v, --version              Die Versoin des Scripts anzeigen"
-  echo "  -o, --official-repo        Das offizielle Postgres Docker-Repo verwenden"
+  echo "  -v, --version              Die Version des Scripts anzeigen"
+  echo "  -o, --official-repo        Das offizielle Postgres Docker-Image verwenden"
 }
 
 print_version() {
