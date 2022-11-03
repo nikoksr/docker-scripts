@@ -577,15 +577,11 @@ $(blue "### Konfiguration")
 
     # Only create database if name was given. Skip on empty.
     if [ -n "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
-
-      echo -ne "$(blue "### Datenbank für Container '$container_name' erstellen")\n\n"
-
       # Wait 90 seconds for container to start
       is_running=1
       while [[ $i -lt 90 ]]; do
-        echo -ne "$(blue "### Warte auf Container '$container_name'")\n\n"
         # Send basic select query to database to check if it is running
-        if docker exec "$container_name" psql -U postgres -c "SELECT 1" >/dev/null 2>&1 >/dev/null 2>&1; then
+        if docker exec "$container_name" psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
           is_running=0
           break
         fi
@@ -595,16 +591,16 @@ $(blue "### Konfiguration")
 
       # Check if container is running and create database if so.
       if [ "$is_running" -eq 0 ]; then
-        docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" &&
-          echo "> Datenbank $db_name erfolgreich erstellt..."
+        docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1 &&
+          echo -e "> Datenbank $(dim $db_name) erfolgreich erstellt"
       else
-        echo "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist..."
+        echo -e "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist"
       fi
     fi
 
     echo -e "> Container $(dim $container_name) gestartet auf $(green "$ip":"$port")"
+    echo
   done
-  echo
 }
 
 list_postgres_containers() {
