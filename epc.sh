@@ -5,7 +5,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.31.1-alpha'
+VERSION='v0.31.2-alpha'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
@@ -565,7 +565,6 @@ $(blue "### Konfiguration")
 
     docker run \
       --name "$container_name" \
-      --log-driver local \
       --log-opt max-file="$max_log_file" \
       --log-opt max-size="$max_log_file_size" \
       --publish "$port":5432 \
