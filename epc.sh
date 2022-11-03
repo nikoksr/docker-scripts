@@ -5,7 +5,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.31.0-alpha'
+VERSION='v0.31.1-alpha'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
@@ -543,7 +543,6 @@ $(blue "### Konfiguration")
   fi
 
   echo
-
   echo -ne "$(blue "### Postgres Image laden")\n\n"
   docker pull "$DOCKER_REPO":"$postgres_version"
 
@@ -579,14 +578,18 @@ $(blue "### Konfiguration")
     # Only create database if name was given. Skip on empty.
     if [ -n "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
 
+      echo -ne "$(blue "### Datenbank für Container '$container_name' erstellen")\n\n"
+
       # Wait 90 seconds for container to start
       is_running=1
       while [[ $i -lt 90 ]]; do
-        if [[ "$(docker exec $container_name pg_isready)" == *"accepting"* ]]; then
+        echo -ne "$(blue "### Warte auf Container '$container_name'")\n\n"
+        # Send basic select query to database to check if it is running
+        if docker exec "$container_name" psql -U postgres -c "SELECT 1" >/dev/null 2>&1 >/dev/null 2>&1; then
           is_running=0
           break
         fi
-        sleep 1s
+        sleep 0.05
         i=$(("$i" + 1))
       done
 
