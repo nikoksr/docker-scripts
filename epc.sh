@@ -5,7 +5,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.30.0'
+VERSION='v0.31.0-alpha'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
@@ -462,14 +462,15 @@ $(blue "### Konfiguration")
   fi
 
   # Logging behaviour
+  default_log_file_num="3"
   echo
-  echo -ne "> Maximal Anzahl Log Dateien $(dim '(5)'):                "
+  echo -ne "> Maximal Anzahl Log Dateien $(dim '('$default_log_file_num')'):                "
   read max_log_file
   if [ -z "$max_log_file" ]; then
-    max_log_file="5"
+    max_log_file="$default_log_file_num"
   fi
 
-  default_log_file_size="20m"
+  default_log_file_size="1g"
   echo -ne "> Maximale Größe einer Log-Datei $(dim '('$default_log_file_size')'):         "
   read max_log_file_size
   if [ -z "$max_log_file_size" ]; then
@@ -565,6 +566,7 @@ $(blue "### Konfiguration")
 
     docker run \
       --name "$container_name" \
+      --log-driver local \
       --log-opt max-file="$max_log_file" \
       --log-opt max-size="$max_log_file_size" \
       --publish "$port":5432 \
