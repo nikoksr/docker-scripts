@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
+
 set -e
 
 #################################################
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.31.2-alpha'
+VERSION='v0.31.2'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
