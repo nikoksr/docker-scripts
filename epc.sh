@@ -566,6 +566,7 @@ $(blue "### Konfiguration")
 
     docker run \
       --name "$container_name" \
+      --log-driver local \
       --log-opt max-file="$max_log_file" \
       --log-opt max-size="$max_log_file_size" \
       --publish "$port":5432 \
