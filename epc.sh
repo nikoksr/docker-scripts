@@ -6,7 +6,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.31.2'
+VERSION='v0.32.0-beta'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
@@ -16,13 +16,18 @@ DOCKER_REPO_OFFICIAL="postgres"
 
 # Name of a custom postgres docker hub repo. This usually supplies images that were customized. It is expected that the
 # repo follows the tagging convention of the official repo and supports most or all major non-beta versions.
-DOCKER_REPO_CUSTOM="nikoksr/postgres"
+DOCKER_REPO_DEFAULT="nikoksr/postgres"
 
-# Default values for cli arguments
-USE_OFFICIAL_REPO=0
+# Basically a clone of the default repo but used for testing purposes. It ususally contains the latest images.
+DOCKER_REPO_EDGE="nikoksr/postgres-edge"
 
 # Use the custom repo by default.
-DOCKER_REPO="$DOCKER_REPO_CUSTOM"
+DOCKER_REPO="$DOCKER_REPO_DEFAULT"
+
+# Keep track of CLI flags that were passed.
+USE_OFFICIAL_REPO=0
+USE_CUSTOM_REPO=0
+USE_EDGE_REPO=0
 
 #################################################
 # VISUALS
@@ -52,31 +57,67 @@ parse_cli_arguments() {
       print_help
       exit 0
       ;;
-    -v | --VERSION)
+    -v | --version)
       print_version
       exit 0
       ;;
     -o | --official-repo)
+      DOCKER_REPO="$DOCKER_REPO_OFFICIAL"
       USE_OFFICIAL_REPO=1
+      shift
+      ;;
+    -e | --edge-repo)
+      DOCKER_REPO="$DOCKER_REPO_EDGE"
+      USE_EDGE_REPO=1
+      shift
+      ;;
+    -c | --custom-repo)
+      DOCKER_REPO="$2"
+      USE_CUSTOM_REPO=1
+      shift
       shift
       ;;
     *) ;;
     esac
   done
 
-  # When USE_OFFICIAL_REPO is set to 1, the official repo is used. Otherwise, the custom repo is used.
-  if [ $USE_OFFICIAL_REPO -eq 1 ]; then
-    DOCKER_REPO=$DOCKER_REPO_OFFICIAL
+  # Flags -o, -e and -c are mutually exclusive. If more than one is set, exit with error. As a simple hack, we can just 
+  # check if the sum of the flags is greater than 1.
+  if [ $((USE_OFFICIAL_REPO + USE_EDGE_REPO + USE_CUSTOM_REPO)) -gt 1 ]; then
+    echo "Error: Optionen -o, -e und -c sind nicht kompatibel. Bitte wählen Sie nur eine Option aus."
+    exit 1
   fi
 }
 
 print_help() {
   echo "Usage: $0 [OPTIONS]"
   echo
+  echo "Einfache PostgreSQL-Container Erstellung und Verwaltung."
+  echo
   echo "Options:"
   echo "  -h, --help                 Diese Hilfe anzeigen"
-  echo "  -v, --version              Die Version des Scripts anzeigen"
-  echo "  -o, --official-repo        Das offizielle Postgres Docker-Image verwenden"
+  echo "  -v, --version              Die Version dieses Scripts anzeigen"
+  echo "  -o, --official-repo        Das offizielle Postgres Docker-Repo verwenden ($DOCKER_REPO_OFFICIAL)"
+  echo "  -e, --edge-repo            Die neuesten Postgres Versionen verwenden ($DOCKER_REPO_EDGE)"
+  echo "  -c, --custom-repo <repo>   Ein benutzerdefiniertes Postgres Docker-Repo verwenden (z.B. $DOCKER_REPO_DEFAULT)"
+  echo
+  echo "Hinweis:"
+  echo "  Standardmäßig wird das Docker-Repo 'nikoksr/postgres' verwendet. Dieses Repo enthält Postgres"
+  echo "  Images, deren Encoding auf 'de_DE.UTF-8' eingestellt sind. Sie sind also für die Verwendung mit"
+  echo "  der deutschen Sprache optimiert."
+  echo 
+  echo "  Die Repos Official und Edge sind nicht identisch! Official ist das offizielle Postgres-Repo,"
+  echo "  es enthält alle Versionen, die von der PostgreSQL-Community unterstützt werden. Edge ist ein"
+  echo "  weiteres benutzerdefiniertes Repo, ähnlich dem Standard-Repo, das jedoch die neuesten Versionen"
+  echo "  von Postgres enthält. Wurde eine neue Version von Postgres veröffentlicht, landet sie zuerst im"
+  echo "  Edge-Repo. Sollten keine Probleme auftreten, wird sie dann in das Standard-Repo übertragen."
+  echo
+  echo "Beispiele:"
+  echo "  # Verwende offizielle Postgres Images"
+  echo "  $0 -o"
+  echo
+  echo "  # Verwende benutzerdefinierte Postgres Images"
+  echo "  $0 -c johndoe/a-custom-postgres-repo"
 }
 
 print_version() {
