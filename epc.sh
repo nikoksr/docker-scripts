@@ -6,7 +6,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.32.0-beta'
+VERSION='v0.32.0'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
