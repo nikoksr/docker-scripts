@@ -6,7 +6,7 @@ set -e
 # GLOBAL VARIABLES
 #################################################
 
-VERSION='v0.32.1'
+VERSION='v0.32.2'
 
 # This is the url to the official Docker install script which will be used here to.. install docker.
 INSTALL_SCRIPT_URL="https://get.docker.com/"
@@ -81,7 +81,7 @@ parse_cli_arguments() {
     esac
   done
 
-  # Flags -o, -e and -c are mutually exclusive. If more than one is set, exit with error. As a simple hack, we can just 
+  # Flags -o, -e and -c are mutually exclusive. If more than one is set, exit with error. As a simple hack, we can just
   # check if the sum of the flags is greater than 1.
   if [ $((USE_OFFICIAL_REPO + USE_EDGE_REPO + USE_CUSTOM_REPO)) -gt 1 ]; then
     echo "Error: Optionen -o, -e und -c sind nicht kompatibel. Bitte wählen Sie nur eine Option aus."
@@ -105,7 +105,7 @@ print_help() {
   echo "  Standardmäßig wird das Docker-Repo 'nikoksr/postgres' verwendet. Dieses Repo enthält Postgres"
   echo "  Images, deren Encoding auf 'de_DE.UTF-8' eingestellt sind. Sie sind also für die Verwendung mit"
   echo "  der deutschen Sprache optimiert."
-  echo 
+  echo
   echo "  Die Repos Official und Edge sind nicht identisch! Official ist das offizielle Postgres-Repo,"
   echo "  es enthält alle Versionen, die von der PostgreSQL-Community unterstützt werden. Edge ist ein"
   echo "  weiteres benutzerdefiniertes Repo, ähnlich dem Standard-Repo, das jedoch die neuesten Versionen"
@@ -591,8 +591,9 @@ $(blue "### Konfiguration")
   # Create multiple containers
   echo -ne "\n$(blue "### Container starten")\n\n"
 
-  # Follow an example request to find out systems IP address. 'ip a ' is too verbose and
-  # shows ip addresses of ALL network interfaces on the system.
+  # Follow an example request to find out systems internal IP address. 'ip a ' is too verbose and
+  # shows ip addresses of ALL network interfaces on the system. We extract the IP address to present a "123.456.789.123:5432"
+  # type of output to the user at the end. This is a convenience feature.
   ip=$(ip route get 1.1.1.1 | sed -n '/src/{s/.*src *\([^ ]*\).*/\1/p;q}')
   end_port=$((external_port + container_count - 1))
 
@@ -617,26 +618,22 @@ $(blue "### Konfiguration")
       "$DOCKER_REPO":"$postgres_version" >/dev/null
 
     # Only create database if name was given. Skip on empty.
+    local attempts=30
+    local db_created=0
     if [ -n "$db_name" ] && [ ! "$db_name" = "postgres" ]; then
-      # Wait 90 seconds for container to start
-      is_running=1
-      while [[ $i -lt 90 ]]; do
-        # Send basic select query to database to check if it is running
-        if docker exec "$container_name" psql -U postgres -c "SELECT 1" >/dev/null 2>&1; then
-          is_running=0
+      while [[ $i -lt $attempts ]]; do
+        if docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1; then
+          db_created=1
+          echo -e "> Datenbank $(dim $db_name) erfolgreich erstellt"
           break
         fi
-        sleep 0.05
+        sleep 1
         i=$(("$i" + 1))
       done
+    fi
 
-      # Check if container is running and create database if so.
-      if [ "$is_running" -eq 0 ]; then
-        docker exec -it "$container_name" psql -U postgres -c "CREATE DATABASE $db_name;" >/dev/null 2>&1 &&
-          echo -e "> Datenbank $(dim $db_name) erfolgreich erstellt"
-      else
-        echo -e "> $(red 'Warnung:') Konnte Datenbank nicht anlegen, da Container nicht im erwarteten Zeitraum gestartet ist"
-      fi
+    if [[ $db_created -eq 0 ]]; then
+      echo -e "> Datenbank $(dim $db_name) konnte auch nach $attempts Versuchen nicht erstellt werden"
     fi
 
     echo -e "> Container $(dim $container_name) gestartet auf $(green "$ip":"$port")"
