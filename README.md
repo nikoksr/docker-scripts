@@ -10,14 +10,14 @@ Interaktives Shell-Menü zum vereinfachten Erzeugen, Listen, Entfernen und Beoba
 
 ### Feature
 
--   `Docker` automatisch installieren & konfigurieren
--   Postgres-Container erstellen & starten
--   Postgres-Container auflisten
--   Postgres-Container Statistiken
--   Postgres-Container Log
--   Postgres-Container Top
--   Gestoppte Container entfernen
--   Unreferenzierte Images entfernen
+- `Docker` automatisch installieren & konfigurieren
+- Postgres-Container erstellen & starten
+- Postgres-Container auflisten
+- Postgres-Container Statistiken
+- Postgres-Container Log
+- Postgres-Container Top
+- Gestoppte Container entfernen
+- Unreferenzierte Images entfernen
 
 ### Abhängigkeiten
 
@@ -47,11 +47,11 @@ Zum Downloaden des Skripts wird entweder das Programm `curl` oder `wget` benöti
 
 > Sollten die gekürzten URLs nicht funktionieren, können Sie auch die vollständige URL verwenden: <https://raw.githubusercontent.com/nikoksr/docker-scripts/main/epc.sh>
 
-    curl -sfL -o epc.sh https://git.io/JLpzr
+    curl -sfL -o epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/refs/heads/feat/adjust-shm-size/epc.sh
 
 oder
 
-    wget -O epc.sh https://git.io/JLpzr
+    wget -O epc.sh https://raw.githubusercontent.com/nikoksr/docker-scripts/refs/heads/feat/adjust-shm-size/epc.sh
 
 ### Ausführen
 
